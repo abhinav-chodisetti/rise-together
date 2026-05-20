@@ -7,13 +7,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
-import { COLORS } from '../../constants/theme';
+import { useThemeColors } from '../../lib/theme-context';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function SignInScreen() {
   const { signIn, errors, fetchStatus } = useSignIn();
   const router = useRouter();
+  const colors = useThemeColors();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -42,21 +43,29 @@ export default function SignInScreen() {
       return;
     }
 
-    if (signIn.status === 'complete') {
+    console.log('[SignIn] post-password status:', signIn.status);
+
+    try {
       await signIn.finalize({
         navigate: ({ decorateUrl }) => {
           router.replace(decorateUrl('/(tabs)') as Href);
         },
       });
+    } catch (e) {
+      console.log('[SignIn] finalize threw:', e);
+      setTopError(
+        `Sign-in didn't complete (status: ${signIn.status}). Try again or reset your password.`,
+      );
     }
   };
 
   const emailError = localEmailError ?? errors?.fields?.identifier?.message;
   const passwordError = errors?.fields?.password?.message;
+  const hasFieldError = !!emailError || !!passwordError;
 
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: COLORS.background }}
+      style={{ flex: 1, backgroundColor: colors.background }}
       edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -67,7 +76,7 @@ export default function SignInScreen() {
           showsVerticalScrollIndicator={false}>
           <View className="items-center pb-12 pt-8">
             <View className="h-20 w-20 items-center justify-center rounded-2xl bg-primary/10">
-              <Ionicons name="sparkles" size={36} color={COLORS.primary} />
+              <Ionicons name="sparkles" size={36} color={colors.primary} />
             </View>
             <Text className="mt-5 text-headline-large font-primary-bold text-primary-text">
               RiseTogether
@@ -77,7 +86,7 @@ export default function SignInScreen() {
             </Text>
           </View>
 
-          {topError ? (
+          {topError && !hasFieldError ? (
             <View className="mb-4 rounded-md border border-error bg-surface px-4 py-3">
               <Text className="text-body-small font-secondary text-error">{topError}</Text>
             </View>

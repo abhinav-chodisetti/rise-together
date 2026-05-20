@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../../components/Button';
 import { Checkbox } from '../../components/Checkbox';
 import { Input } from '../../components/Input';
-import { COLORS } from '../../constants/theme';
+import { useThemeColors } from '../../lib/theme-context';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD = 8;
@@ -18,6 +18,7 @@ type Mode = 'form' | 'verify';
 export default function SignUpScreen() {
   const { signUp, errors, fetchStatus } = useSignUp();
   const router = useRouter();
+  const colors = useThemeColors();
 
   const [mode, setMode] = useState<Mode>('form');
 
@@ -116,9 +117,13 @@ export default function SignUpScreen() {
 
   const canSubmitCode = code.length === 6 && !isFetching;
 
+  const emailFieldError = localErrors.email ?? errors?.fields?.emailAddress?.message;
+  const passwordFieldError = localErrors.password ?? errors?.fields?.password?.message;
+  const hasFieldError = !!localErrors.name || !!emailFieldError || !!passwordFieldError;
+
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: COLORS.background }}
+      style={{ flex: 1, backgroundColor: colors.background }}
       edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -142,7 +147,7 @@ export default function SignUpScreen() {
               accessibilityRole="button"
               accessibilityLabel="Go back"
               className="h-11 w-11 items-center justify-center rounded-md bg-surface border border-divider">
-              <Ionicons name="chevron-back" size={22} color={COLORS.primaryText} />
+              <Ionicons name="chevron-back" size={22} color={colors.primaryText} />
             </Pressable>
 
             <View className="flex-row gap-1.5">
@@ -163,7 +168,7 @@ export default function SignUpScreen() {
                 Build habits. Stay consistent. Rise together.
               </Text>
 
-              {topError ? (
+              {topError && !hasFieldError ? (
                 <View className="mb-4 rounded-md border border-error bg-surface px-4 py-3">
                   <Text className="text-body-small font-secondary text-error">{topError}</Text>
                 </View>
@@ -198,7 +203,7 @@ export default function SignUpScreen() {
                   setEmail(t);
                   if (localErrors.email) setLocalErrors((e) => ({ ...e, email: undefined }));
                 }}
-                error={localErrors.email ?? errors?.fields?.emailAddress?.message}
+                error={emailFieldError}
                 returnKeyType="next"
                 containerClassName="mb-4"
               />
@@ -215,7 +220,7 @@ export default function SignUpScreen() {
                   if (localErrors.password)
                     setLocalErrors((e) => ({ ...e, password: undefined }));
                 }}
-                error={localErrors.password ?? errors?.fields?.password?.message}
+                error={passwordFieldError}
                 returnKeyType="done"
                 containerClassName="mb-5"
               />
@@ -226,7 +231,12 @@ export default function SignUpScreen() {
                 accessibilityLabel="I agree to the Terms of Service and Privacy Policy">
                 <Text className="text-body-medium font-secondary text-primary">
                   I agree to the{' '}
-                  <Text className="font-secondary-semibold">Terms of Service</Text> and{' '}
+                  <Text
+                    className="font-secondary-semibold"
+                    onPress={() => router.push('/terms')}>
+                    Terms of Service
+                  </Text>{' '}
+                  and{' '}
                   <Text className="font-secondary-semibold">Privacy Policy</Text>
                 </Text>
               </Checkbox>

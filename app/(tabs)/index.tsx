@@ -1,32 +1,193 @@
-import { useClerk, useUser } from '@clerk/expo';
-import { Text, View } from 'react-native';
+import { useUser } from '@clerk/expo';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { useRef } from 'react';
+import { Alert, Image, ScrollView, Text, View } from 'react-native';
+import ReanimatedSwipeable, {
+  type SwipeableMethods,
+} from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '../../components/Button';
-import { COLORS } from '../../constants/theme';
+import { useHabits, type Habit } from '../../lib/habits-context';
+import { useThemeColors } from '../../lib/theme-context';
+import { HabitCard } from '../../components/HabitCard';
+
+const MAX_FREE_HABITS = 3;
 
 export default function Home() {
   const { user } = useUser();
-  const { signOut } = useClerk();
+  const router = useRouter();
+  const colors = useThemeColors();
+  const { habits, toggleHabit, removeHabit } = useHabits();
+
+  const completedCount = habits.filter((h) => h.isCompletedToday).length;
+  const totalCount = habits.length;
+  const progressPercent =
+    totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+  const onAddHabit = () => {
+    if (habits.length >= MAX_FREE_HABITS) {
+      Alert.alert(
+        'Upgrade to add more',
+        `The free plan supports ${MAX_FREE_HABITS} habits. Upgrade to add unlimited habits and unlock challenges with friends.`,
+        [
+          { text: 'Not now', style: 'cancel' },
+          { text: 'Upgrade', onPress: () => { /* TODO(paywall): navigate to paywall */ } },
+        ],
+      );
+      return;
+    }
+    router.push('/add-habit');
+  };
+
+  const displayName =
+    [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'there';
 
   return (
-    <SafeAreaView
-      style={{ flex: 1, backgroundColor: COLORS.background }}
-      edges={['top', 'bottom']}>
-      <View className="flex-1 px-6 pt-6">
-        <Text className="text-headline-medium font-primary-bold text-primary-text">
-          Welcome{user?.firstName ? `, ${user.firstName}` : ''}.
-        </Text>
-        <Text className="mt-2 text-body-large font-secondary text-secondary-text">
-          You&apos;re signed in. The real home screen lands here next.
-        </Text>
-
-        <View className="mt-8">
-          <Button variant="secondary" onPress={() => signOut()} accessibilityLabel="Sign out">
-            Sign out
-          </Button>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
+      <ScrollView
+        contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 112 }}
+        showsVerticalScrollIndicator={false}>
+        <View className="flex-row items-center justify-between pt-2 pb-6">
+          <View className="flex-1 pr-4">
+            <Text className="text-body-large font-secondary text-secondary-text">
+              Welcome back
+            </Text>
+            <Text className="mt-1 text-headline-medium font-primary-bold text-primary-text">
+              {displayName}
+            </Text>
+          </View>
+          {user?.imageUrl ? (
+            <Image
+              source={{ uri: user.imageUrl }}
+              style={{
+                width: 60,
+                height: 60,
+                borderRadius: 30,
+                borderWidth: 2,
+                borderColor: colors.primary,
+              }}
+            />
+          ) : (
+            <View
+              style={{
+                width: 60,
+                height: 60,
+                borderRadius: 30,
+                borderWidth: 2,
+                borderColor: colors.primary,
+              }}
+              className="items-center justify-center bg-surface">
+              <Ionicons name="person" size={28} color={colors.primary} />
+            </View>
+          )}
         </View>
+
+        <View className="rounded-md bg-surface p-5">
+          <View className="flex-row items-center justify-between">
+            <Text className="text-title-large font-primary-bold text-primary-text">
+              Daily Goal
+            </Text>
+            <Text className="text-title-medium font-primary-bold text-primary">
+              {progressPercent}%
+            </Text>
+          </View>
+          <View className="mt-4 h-2 w-full overflow-hidden rounded-full bg-divider">
+            <View
+              className="h-full rounded-full bg-primary"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </View>
+          <Text className="mt-4 text-body-medium font-secondary text-secondary-text">
+            {completedCount} of {totalCount} habits completed
+          </Text>
+        </View>
+
+        <Text className="mt-8 text-title-large font-primary-bold text-primary-text">My Habits</Text>
+
+        <View className="mt-4 gap-3">
+          {habits.map((habit) => (
+            <SwipeableHabit
+              key={habit.id}
+              habit={habit}
+              onToggle={toggleHabit}
+              onDelete={removeHabit}
+            />
+          ))}
+        </View>
+      </ScrollView>
+
+      <View
+        style={{
+          position: 'absolute',
+          left: 24,
+          right: 24,
+          bottom: 16,
+          shadowColor: colors.primary,
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.25,
+          shadowRadius: 16,
+          elevation: 8,
+        }}>
+        <Button
+          onPress={onAddHabit}
+          leadingIcon={<Ionicons name="add" size={20} color={colors.onPrimary} />}
+          accessibilityLabel="Add new habit">
+          Add New Habit
+        </Button>
       </View>
     </SafeAreaView>
+  );
+}
+
+function SwipeableHabit({
+  habit,
+  onToggle,
+  onDelete,
+}: {
+  habit: Habit;
+  onToggle: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const colors = useThemeColors();
+  const ref = useRef<SwipeableMethods>(null);
+
+  const renderLeftActions = () => (
+    <View
+      style={{
+        width: 96,
+        backgroundColor: colors.error,
+        borderRadius: 14,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: -12,
+      }}>
+      <Ionicons name="trash-outline" size={26} color="white" />
+    </View>
+  );
+
+  const handleOpen = () => {
+    ref.current?.close();
+    Alert.alert(
+      'Delete this habit?',
+      `"${habit.name}" and its streak history will be removed.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => onDelete(habit.id) },
+      ],
+    );
+  };
+
+  return (
+    <ReanimatedSwipeable
+      ref={ref}
+      renderLeftActions={renderLeftActions}
+      leftThreshold={60}
+      friction={1.5}
+      overshootLeft={false}
+      onSwipeableWillOpen={handleOpen}>
+      <HabitCard habit={habit} onToggle={onToggle} />
+    </ReanimatedSwipeable>
   );
 }

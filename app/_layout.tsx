@@ -4,7 +4,13 @@ import { ClerkProvider } from '@clerk/expo';
 import { tokenCache } from '@clerk/expo/token-cache';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+import { HabitsProvider } from '../lib/habits-context';
+import { NotificationsProvider } from '../lib/notifications-context';
+import { ThemeProvider, useTheme } from '../lib/theme-context';
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
@@ -24,10 +30,26 @@ export default function RootLayout() {
   if (!loaded) return null;
 
   return (
-    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-      <SafeAreaProvider>
-        <Stack screenOptions={{ headerShown: false }} />
-      </SafeAreaProvider>
-    </ClerkProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+        <ThemeProvider>
+          <NotificationsProvider>
+            <HabitsProvider>
+              <ThemedRoot />
+            </HabitsProvider>
+          </NotificationsProvider>
+        </ThemeProvider>
+      </ClerkProvider>
+    </GestureHandlerRootView>
+  );
+}
+
+function ThemedRoot() {
+  const { isDark } = useTheme();
+  return (
+    <SafeAreaProvider>
+      <Stack screenOptions={{ headerShown: false }} />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+    </SafeAreaProvider>
   );
 }
