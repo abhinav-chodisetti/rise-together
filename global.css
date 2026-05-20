@@ -3,3 +3,61 @@
 @import 'tailwindcss/utilities.css';
 
 @import 'nativewind/theme';
+
+@theme {
+  --color-primary: #6C5CE7;
+  --color-on-primary: #FFFFFF;
+  --color-secondary: #6C5CE7;
+  --color-accent: #6C5CE7;
+  --color-background: #F8F9FC;
+  --color-surface: #FFFFFF;
+  --color-on-surface: #1C1C1E;
+  --color-primary-text: #1C1C1E;
+  --color-secondary-text: #636366;
+  --color-hint: #C7C7CC;
+  --color-error: #FF3B30;
+  --color-on-error: #FFFFFF;
+  --color-success: #34C759;
+  --color-divider: #E5E5EA;
+
+  --font-primary: 'PlusJakartaSans-Regular';
+  --font-primary-semibold: 'PlusJakartaSans-SemiBold';
+  --font-primary-bold: 'PlusJakartaSans-Bold';
+  --font-secondary: 'Inter-Regular';
+  --font-secondary-semibold: 'Inter-SemiBold';
+
+  --text-headline-large: 34px;
+  --text-headline-large--line-height: 1.2;
+
+  --text-headline-medium: 28px;
+  --text-headline-medium--line-height: 1.2;
+
+  --text-title-large: 22px;
+  --text-title-large--line-height: 1.3;
+
+  --text-title-medium: 18px;
+  --text-title-medium--line-height: 1.4;
+
+  --text-body-large: 17px;
+  --text-body-large--line-height: 1.5;
+
+  --text-body-medium: 15px;
+  --text-body-medium--line-height: 1.5;
+
+  --text-body-small: 13px;
+  --text-body-small--line-height: 1.4;
+
+  --text-label-large: 15px;
+  --text-label-large--line-height: 1.3;
+
+  --text-label-medium: 13px;
+  --text-label-medium--line-height: 1.3;
+
+  --text-label-small: 11px;
+  --text-label-small--line-height: 1.2;
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 24px;
+  --radius-full: 9999px;
+}
