@@ -24,6 +24,7 @@ export function HabitCard({ habit, onToggle, onPress }: HabitCardProps) {
       accessibilityLabel={`${habit.name}, ${habit.streak} day streak${
         primaryReminder ? `, ${primaryReminder}` : ''
       }`}
+      accessibilityHint="Tap to edit or delete"
       className="flex-row items-center rounded-md bg-surface p-4">
       <Pressable
         onPress={() => onToggle(habit.id)}

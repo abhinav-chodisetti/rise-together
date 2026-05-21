@@ -113,6 +113,7 @@ export default function Home() {
               habit={habit}
               onToggle={toggleHabit}
               onDelete={removeHabit}
+              onPress={(id) => router.push(`/edit-habit/${id}`)}
             />
           ))}
         </View>
@@ -145,10 +146,12 @@ function SwipeableHabit({
   habit,
   onToggle,
   onDelete,
+  onPress,
 }: {
   habit: Habit;
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
+  onPress: (id: string) => void;
 }) {
   const colors = useThemeColors();
   const ref = useRef<SwipeableMethods>(null);
@@ -167,7 +170,7 @@ function SwipeableHabit({
     </View>
   );
 
-  const handleOpen = () => {
+  const promptDelete = () => {
     ref.current?.close();
     Alert.alert(
       'Delete this habit?',
@@ -186,8 +189,8 @@ function SwipeableHabit({
       leftThreshold={60}
       friction={1.5}
       overshootLeft={false}
-      onSwipeableWillOpen={handleOpen}>
-      <HabitCard habit={habit} onToggle={onToggle} />
+      onSwipeableWillOpen={promptDelete}>
+      <HabitCard habit={habit} onToggle={onToggle} onPress={onPress} />
     </ReanimatedSwipeable>
   );
 }

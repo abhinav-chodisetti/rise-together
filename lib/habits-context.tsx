@@ -36,6 +36,7 @@ export type NewHabitInput = {
 type HabitsContextValue = {
   habits: Habit[];
   addHabit: (input: NewHabitInput) => Habit;
+  updateHabit: (id: string, input: NewHabitInput) => void;
   toggleHabit: (id: string) => void;
   removeHabit: (id: string) => void;
   isHydrated: boolean;
@@ -64,13 +65,21 @@ function pastDates(count: number): string[] {
   return dates;
 }
 
+// Parse a "YYYY-MM-DD" string into a local-time Date.
+// `new Date(isoString)` would parse as UTC midnight and drift the day for
+// any user not in UTC+0 — breaking streak math.
+function localDateFromISO(iso: string): Date {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
 // Counts consecutive days the habit was completed, walking backward from
 // today. If today isn't done yet, we start from yesterday — the day isn't
 // over, so the user hasn't broken the streak. As soon as we hit a missing
 // day, we stop counting.
 function computeStreak(completedDates: string[], today: string): number {
   const dateSet = new Set(completedDates);
-  const cursor = new Date(today);
+  const cursor = localDateFromISO(today);
   if (!dateSet.has(toISO(cursor))) {
     cursor.setDate(cursor.getDate() - 1);
   }
@@ -117,7 +126,12 @@ export function HabitsProvider({ children }: { children: ReactNode }) {
         if (cancelled) return;
         if (json) {
           try {
-            setStoredHabits(JSON.parse(json));
+            const parsed: unknown = JSON.parse(json);
+            if (Array.isArray(parsed)) {
+              setStoredHabits(parsed as StoredHabit[]);
+            } else {
+              setStoredHabits(seedHabits());
+            }
           } catch {
             setStoredHabits(seedHabits());
           }
@@ -171,6 +185,22 @@ export function HabitsProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
+  const updateHabit = useCallback((id: string, input: NewHabitInput) => {
+    setStoredHabits((prev) =>
+      prev.map((h) =>
+        h.id === id
+          ? {
+              ...h,
+              name: input.name.trim(),
+              frequency: input.frequency,
+              reminders: input.reminders,
+              quantity: input.quantity?.trim() || undefined,
+            }
+          : h,
+      ),
+    );
+  }, []);
+
   const removeHabit = useCallback((id: string) => {
     setStoredHabits((prev) => prev.filter((h) => h.id !== id));
   }, []);
@@ -185,8 +215,8 @@ export function HabitsProvider({ children }: { children: ReactNode }) {
   }, [storedHabits]);
 
   const value = useMemo<HabitsContextValue>(
-    () => ({ habits, addHabit, toggleHabit, removeHabit, isHydrated }),
-    [habits, addHabit, toggleHabit, removeHabit, isHydrated],
+    () => ({ habits, addHabit, updateHabit, toggleHabit, removeHabit, isHydrated }),
+    [habits, addHabit, updateHabit, toggleHabit, removeHabit, isHydrated],
   );
 
   return <HabitsContext.Provider value={value}>{children}</HabitsContext.Provider>;

@@ -1,3 +1,4 @@
+import { useAuth } from '@clerk/expo';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, Text, View } from 'react-native';
@@ -33,12 +34,21 @@ const SECTIONS: Section[] = [
 export default function TermsScreen() {
   const router = useRouter();
   const colors = useThemeColors();
+  const { isSignedIn } = useAuth();
+
+  const goBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace(isSignedIn ? '/(tabs)' : '/(auth)/sign-in');
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top', 'bottom']}>
       <View className="flex-row items-center border-b border-divider px-4 pb-3 pt-2">
         <Pressable
-          onPress={() => (router.canGoBack() ? router.back() : router.replace('/(auth)/sign-up'))}
+          onPress={goBack}
           hitSlop={10}
           accessibilityRole="button"
           accessibilityLabel="Go back"

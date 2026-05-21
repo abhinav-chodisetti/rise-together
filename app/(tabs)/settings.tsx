@@ -1,7 +1,7 @@
 import { useClerk, useUser } from '@clerk/expo';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Image, Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '../../components/Button';
@@ -17,6 +17,17 @@ export default function Settings() {
   const { isDark, setIsDark } = useTheme();
   const { enabled: notificationsEnabled, setEnabled: setNotificationsEnabled } = useNotifications();
 
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch {
+      Alert.alert(
+        "Couldn't sign you out",
+        'Something went wrong. Check your connection and try again.',
+      );
+    }
+  };
+
   const displayName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'there';
   const email = user?.primaryEmailAddress?.emailAddress ?? '';
   const initials =
@@ -27,19 +38,9 @@ export default function Settings() {
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 32 }}
         showsVerticalScrollIndicator={false}>
-        <View className="flex-row items-center pt-2 pb-6">
-          <Pressable
-            onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
-            hitSlop={10}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-            className="h-10 w-10 items-center justify-center">
-            <Ionicons name="chevron-back" size={26} color={colors.primaryText} />
-          </Pressable>
-          <Text className="ml-1 text-headline-medium font-primary-bold text-primary-text">
-            Settings
-          </Text>
-        </View>
+        <Text className="pt-2 pb-6 text-headline-medium font-primary-bold text-primary-text">
+          Settings
+        </Text>
 
         <View className="flex-row items-center pb-6">
           {user?.imageUrl ? (
@@ -156,7 +157,7 @@ export default function Settings() {
             tileBg="bg-error/10"
             label="Logout"
             labelClassName="text-error"
-            onPress={() => signOut()}
+            onPress={handleSignOut}
             hideChevron
           />
         </View>

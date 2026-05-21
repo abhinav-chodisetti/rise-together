@@ -43,16 +43,13 @@ export default function SignInScreen() {
       return;
     }
 
-    console.log('[SignIn] post-password status:', signIn.status);
-
     try {
       await signIn.finalize({
         navigate: ({ decorateUrl }) => {
           router.replace(decorateUrl('/(tabs)') as Href);
         },
       });
-    } catch (e) {
-      console.log('[SignIn] finalize threw:', e);
+    } catch {
       setTopError(
         `Sign-in didn't complete (status: ${signIn.status}). Try again or reset your password.`,
       );
