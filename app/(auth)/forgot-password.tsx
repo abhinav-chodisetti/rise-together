@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
-import { COLORS } from '../../constants/theme';
+import { useThemeColors } from '../../lib/theme-context';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD = 8;
@@ -17,6 +17,7 @@ type Mode = 'request' | 'verify' | 'reset';
 export default function ForgotPasswordScreen() {
   const { signIn, fetchStatus } = useSignIn();
   const router = useRouter();
+  const colors = useThemeColors();
 
   const [mode, setMode] = useState<Mode>('request');
   const [email, setEmail] = useState('');
@@ -118,7 +119,7 @@ export default function ForgotPasswordScreen() {
 
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: COLORS.background }}
+      style={{ flex: 1, backgroundColor: colors.background }}
       edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -134,7 +135,7 @@ export default function ForgotPasswordScreen() {
               accessibilityRole="button"
               accessibilityLabel="Go back"
               className="h-11 w-11 items-center justify-center rounded-md bg-surface border border-divider">
-              <Ionicons name="chevron-back" size={22} color={COLORS.primaryText} />
+              <Ionicons name="chevron-back" size={22} color={colors.primaryText} />
             </Pressable>
           </View>
 

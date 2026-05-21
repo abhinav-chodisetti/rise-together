@@ -3,7 +3,7 @@ import { forwardRef, useState } from 'react';
 import { Pressable, Text, TextInput, TextInputProps, View } from 'react-native';
 
 import { cn } from './cn';
-import { COLORS } from '../constants/theme';
+import { useThemeColors } from '../lib/theme-context';
 
 export interface InputProps extends Omit<TextInputProps, 'style'> {
   label?: string;
@@ -16,6 +16,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
   { label, leadingIcon, error, secureTextEntry, containerClassName, ...textInputProps },
   ref,
 ) {
+  const colors = useThemeColors();
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const isPassword = !!secureTextEntry;
   const effectiveSecure = isPassword && !isPasswordVisible;
@@ -36,14 +37,16 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
           <Ionicons
             name={leadingIcon}
             size={20}
-            color={COLORS.secondaryText}
+            color={colors.secondaryText}
             style={{ marginRight: 10 }}
           />
         ) : null}
         <TextInput
           ref={ref}
-          className="flex-1 py-3.5 text-body-large font-secondary text-primary-text"
-          placeholderTextColor={COLORS.hint}
+          className="flex-1 py-3.5 font-secondary text-primary-text"
+          style={{ fontSize: 17 }}
+          textAlignVertical="center"
+          placeholderTextColor={colors.hint}
           secureTextEntry={effectiveSecure}
           {...textInputProps}
         />
@@ -56,7 +59,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
             <Ionicons
               name={isPasswordVisible ? 'eye-outline' : 'eye-off-outline'}
               size={20}
-              color={COLORS.secondaryText}
+              color={colors.secondaryText}
             />
           </Pressable>
         ) : null}

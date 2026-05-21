@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Pressable, View } from 'react-native';
 
 import { cn } from './cn';
-import { COLORS } from '../constants/theme';
+import { useThemeColors } from '../lib/theme-context';
 
 export interface CheckboxProps {
   checked: boolean;
@@ -12,6 +12,7 @@ export interface CheckboxProps {
 }
 
 export function Checkbox({ checked, onChange, children, accessibilityLabel }: CheckboxProps) {
+  const colors = useThemeColors();
   return (
     <Pressable
       onPress={() => onChange(!checked)}
@@ -25,7 +26,7 @@ export function Checkbox({ checked, onChange, children, accessibilityLabel }: Ch
           'h-6 w-6 items-center justify-center rounded-sm border',
           checked ? 'bg-primary border-primary' : 'bg-surface border-divider',
         )}>
-        {checked ? <Ionicons name="checkmark" size={16} color={COLORS.onPrimary} /> : null}
+        {checked ? <Ionicons name="checkmark" size={16} color={colors.onPrimary} /> : null}
       </View>
       {children ? <View className="ml-3 flex-1">{children}</View> : null}
     </Pressable>

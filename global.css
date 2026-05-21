@@ -61,3 +61,17 @@
   --radius-lg: 24px;
   --radius-full: 9999px;
 }
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-background: #000000;
+    --color-surface: #1C1C1E;
+    --color-on-surface: #F2F2F7;
+    --color-primary-text: #FFFFFF;
+    --color-secondary-text: #8E8E93;
+    --color-hint: #48484A;
+    --color-error: #FF453A;
+    --color-success: #32D74B;
+    --color-divider: #38383A;
+  }
+}

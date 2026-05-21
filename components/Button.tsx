@@ -1,6 +1,7 @@
 import { ActivityIndicator, Pressable, PressableProps, Text, View } from 'react-native';
 
 import { cn } from './cn';
+import { useThemeColors } from '../lib/theme-context';
 
 type ButtonVariant = 'primary' | 'secondary';
 
@@ -12,19 +13,14 @@ export interface ButtonProps extends Omit<PressableProps, 'children' | 'style'> 
   className?: string;
 }
 
-const VARIANTS: Record<
-  ButtonVariant,
-  { container: string; label: string; spinner: 'white' | undefined }
-> = {
+const VARIANTS: Record<ButtonVariant, { container: string; label: string }> = {
   primary: {
     container: 'bg-primary',
     label: 'text-on-primary',
-    spinner: 'white',
   },
   secondary: {
     container: 'bg-surface border border-divider',
     label: 'text-primary-text',
-    spinner: undefined,
   },
 };
 
@@ -37,8 +33,10 @@ export function Button({
   className,
   ...pressableProps
 }: ButtonProps) {
+  const colors = useThemeColors();
   const isDisabled = disabled || loading;
   const v = VARIANTS[variant];
+  const spinnerColor = variant === 'primary' ? colors.onPrimary : colors.primary;
   return (
     <Pressable
       accessibilityRole="button"
@@ -51,7 +49,7 @@ export function Button({
       )}
       {...pressableProps}>
       {loading ? (
-        <ActivityIndicator color={v.spinner} />
+        <ActivityIndicator color={spinnerColor} />
       ) : (
         <>
           {leadingIcon ? <View className="mr-2">{leadingIcon}</View> : null}
