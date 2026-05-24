@@ -8,6 +8,7 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { ChallengesProvider } from '../lib/challenges-context';
 import { HabitsProvider } from '../lib/habits-context';
 import { NotificationsProvider } from '../lib/notifications-context';
 import { ThemeProvider, useTheme } from '../lib/theme-context';
@@ -35,7 +36,9 @@ export default function RootLayout() {
         <ThemeProvider>
           <NotificationsProvider>
             <HabitsProvider>
-              <ThemedRoot />
+              <ChallengesProvider>
+                <ThemedRoot />
+              </ChallengesProvider>
             </HabitsProvider>
           </NotificationsProvider>
         </ThemeProvider>
@@ -48,7 +51,9 @@ function ThemedRoot() {
   const { isDark } = useTheme();
   return (
     <SafeAreaProvider>
-      <Stack screenOptions={{ headerShown: false }} />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="paywall" options={{ presentation: 'modal' }} />
+      </Stack>
       <StatusBar style={isDark ? 'light' : 'dark'} />
     </SafeAreaProvider>
   );
