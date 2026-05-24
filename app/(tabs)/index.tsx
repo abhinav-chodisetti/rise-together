@@ -33,7 +33,7 @@ export default function Home() {
         `The free plan supports ${MAX_FREE_HABITS} habits. Upgrade to add unlimited habits and unlock challenges with friends.`,
         [
           { text: 'Not now', style: 'cancel' },
-          { text: 'Upgrade', onPress: () => { /* TODO(paywall): navigate to paywall */ } },
+          { text: 'Upgrade', onPress: () => router.push('/paywall') },
         ],
       );
       return;

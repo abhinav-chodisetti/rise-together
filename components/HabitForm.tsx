@@ -174,11 +174,8 @@ export function HabitForm({
           contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 112 }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
-          <Text className="mt-2 text-label-large font-secondary-semibold text-primary-text">
-            What&apos;s the habit?
-          </Text>
           <Input
-            label="Habit Name"
+            label="Name"
             placeholder="e.g. Drink Water, Gym, Meditation"
             leadingIcon="create-outline"
             autoCapitalize="sentences"
@@ -189,7 +186,20 @@ export function HabitForm({
             }}
             error={nameError}
             returnKeyType="done"
-            containerClassName="mt-3"
+            containerClassName="mt-2"
+          />
+
+          <Text className="mt-8 mb-3 text-label-large font-secondary-semibold text-primary-text">
+            Description{' '}
+            <Text className="text-body-small font-secondary text-secondary-text">(Optional)</Text>
+          </Text>
+          <Input
+            placeholder="Add a short note about this habit"
+            leadingIcon="document-text-outline"
+            autoCapitalize="sentences"
+            value={quantity}
+            onChangeText={setQuantity}
+            returnKeyType="done"
           />
 
           <Text className="mt-8 mb-3 text-label-large font-secondary-semibold text-primary-text">
@@ -257,19 +267,6 @@ export function HabitForm({
               You can set up to {MAX_REMINDERS} reminders per habit
             </Text>
           </View>
-
-          <Text className="mt-8 text-label-large font-secondary-semibold text-primary-text">
-            Daily Goal (Optional)
-          </Text>
-          <Input
-            label="Quantity"
-            placeholder="e.g. 8 glasses, 30 minutes"
-            leadingIcon="flag-outline"
-            value={quantity}
-            onChangeText={setQuantity}
-            returnKeyType="done"
-            containerClassName="mt-3"
-          />
 
           {onDelete ? (
             <Pressable

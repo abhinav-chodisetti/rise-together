@@ -22,14 +22,15 @@ export default function SignUpScreen() {
 
   const [mode, setMode] = useState<Mode>('form');
 
-  const [fullName, setFullName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [code, setCode] = useState('');
 
   const [localErrors, setLocalErrors] = useState<{
-    name?: string;
+    firstName?: string;
     email?: string;
     password?: string;
   }>({});
@@ -41,22 +42,20 @@ export default function SignUpScreen() {
     setTopError(undefined);
     const next: typeof localErrors = {};
 
-    const trimmedName = fullName.trim();
-    if (trimmedName.length < 2) next.name = 'Enter your full name';
+    const trimmedFirst = firstName.trim();
+    const trimmedLast = lastName.trim();
+    if (trimmedFirst.length === 0) next.firstName = 'Enter your first name';
     if (!EMAIL_RE.test(email.trim())) next.email = 'Enter a valid email';
     if (password.length < MIN_PASSWORD) next.password = `At least ${MIN_PASSWORD} characters`;
 
     setLocalErrors(next);
     if (Object.keys(next).length > 0) return;
 
-    const [firstName, ...rest] = trimmedName.split(/\s+/);
-    const lastName = rest.join(' ');
-
     const { error } = await signUp.password({
       emailAddress: email.trim(),
       password,
-      firstName,
-      lastName,
+      firstName: trimmedFirst,
+      lastName: trimmedLast,
     });
 
     if (error) {
@@ -109,7 +108,7 @@ export default function SignUpScreen() {
   };
 
   const canSubmitForm =
-    fullName.trim().length >= 2 &&
+    firstName.trim().length > 0 &&
     EMAIL_RE.test(email.trim()) &&
     password.length >= MIN_PASSWORD &&
     termsAccepted &&
@@ -119,7 +118,7 @@ export default function SignUpScreen() {
 
   const emailFieldError = localErrors.email ?? errors?.fields?.emailAddress?.message;
   const passwordFieldError = localErrors.password ?? errors?.fields?.password?.message;
-  const hasFieldError = !!localErrors.name || !!emailFieldError || !!passwordFieldError;
+  const hasFieldError = !!localErrors.firstName || !!emailFieldError || !!passwordFieldError;
 
   return (
     <SafeAreaView
@@ -175,17 +174,30 @@ export default function SignUpScreen() {
               ) : null}
 
               <Input
-                label="Full name"
-                placeholder="Alex Rivera"
+                label="First name"
+                placeholder="Alex"
                 leadingIcon="person-outline"
                 autoCapitalize="words"
-                autoComplete="name"
-                value={fullName}
+                autoComplete="given-name"
+                value={firstName}
                 onChangeText={(t) => {
-                  setFullName(t);
-                  if (localErrors.name) setLocalErrors((e) => ({ ...e, name: undefined }));
+                  setFirstName(t);
+                  if (localErrors.firstName)
+                    setLocalErrors((e) => ({ ...e, firstName: undefined }));
                 }}
-                error={localErrors.name}
+                error={localErrors.firstName}
+                returnKeyType="next"
+                containerClassName="mb-4"
+              />
+
+              <Input
+                label="Last name"
+                placeholder="Rivera"
+                leadingIcon="person-outline"
+                autoCapitalize="words"
+                autoComplete="family-name"
+                value={lastName}
+                onChangeText={setLastName}
                 returnKeyType="next"
                 containerClassName="mb-4"
               />
