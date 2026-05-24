@@ -3,6 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '../components/Button';
 import { cn } from '../components/cn';
@@ -31,18 +32,20 @@ const IMAGE_OFFSET_Y = -110;
 export default function PaywallScreen() {
   const router = useRouter();
   const colors = useThemeColors();
+  const insets = useSafeAreaInsets();
 
   const [individualTier, setIndividualTier] = useState<Tier>('annual');
   const [sharedTier, setSharedTier] = useState<Tier>('annual');
 
-  // TODO(payments): swap for the real RevenueCat / StoreKit / Play Billing call.
-  const onSubscribe = () => {
-    router.back();
-  };
-
   const dismiss = () => {
     if (router.canGoBack()) router.back();
     else router.replace('/(tabs)');
+  };
+
+  // TODO(payments): swap for the real RevenueCat / StoreKit / Play Billing call,
+  // then dismiss only on success.
+  const onSubscribe = () => {
+    dismiss();
   };
 
   return (
@@ -84,7 +87,7 @@ export default function PaywallScreen() {
             accessibilityLabel="Close"
             style={{
               position: 'absolute',
-              top: 16,
+              top: insets.top + 16,
               left: 16,
               width: 40,
               height: 40,

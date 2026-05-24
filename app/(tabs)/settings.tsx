@@ -62,9 +62,10 @@ export default function Settings() {
   // TODO(feedback-backend): replace the body of submitFeedback with a real POST
   // to your endpoint (Web3Forms / Formspree / your own server). The function
   // must resolve on success or throw on failure — the calling code is already
-  // wired for both branches.
+  // wired for both branches. Throwing here is intentional: fail-closed so we
+  // never falsely tell a user their feedback was received.
   const submitFeedback = async (_message: string): Promise<void> => {
-    await new Promise<void>((resolve) => setTimeout(resolve, 600));
+    throw new Error('Feedback transport not implemented');
   };
 
   const openFeedback = () => {
@@ -105,38 +106,49 @@ export default function Settings() {
   };
 
   const takePhoto = async () => {
-    const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (!perm.granted) {
-      Alert.alert('Camera permission needed', 'Enable camera access in Settings to take a photo.');
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets[0]) {
-      await uploadAvatar(result.assets[0].uri);
+    try {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert(
+          'Camera permission needed',
+          'Enable camera access in Settings to take a photo.',
+        );
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets[0]) {
+        await uploadAvatar(result.assets[0].uri);
+      }
+    } catch {
+      Alert.alert("Couldn't open the camera", 'Try again.');
     }
   };
 
   const pickFromLibrary = async () => {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      Alert.alert(
-        'Photos permission needed',
-        'Enable Photos access in Settings to choose a picture.',
-      );
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: 'images',
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets[0]) {
-      await uploadAvatar(result.assets[0].uri);
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert(
+          'Photos permission needed',
+          'Enable Photos access in Settings to choose a picture.',
+        );
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: 'images',
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets[0]) {
+        await uploadAvatar(result.assets[0].uri);
+      }
+    } catch {
+      Alert.alert("Couldn't open Photos", 'Try again.');
     }
   };
 

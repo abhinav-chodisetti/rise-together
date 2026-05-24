@@ -144,6 +144,9 @@ export default function CreateChallengeScreen() {
         handle,
       );
     } else {
+      // Android Alert.alert reliably renders at most 3 buttons. When a cover is
+      // already set we drop the explicit Cancel — back button / outside-tap
+      // still dismisses the dialog.
       const buttons: { text: string; onPress?: () => void; style?: 'cancel' | 'destructive' }[] = [
         { text: 'Take Photo', onPress: takeCoverPhoto },
         { text: 'Choose from Library', onPress: pickCoverFromLibrary },
@@ -154,8 +157,9 @@ export default function CreateChallengeScreen() {
           style: 'destructive',
           onPress: () => setCoverImageUri(null),
         });
+      } else {
+        buttons.push({ text: 'Cancel', style: 'cancel' });
       }
-      buttons.push({ text: 'Cancel', style: 'cancel' });
       Alert.alert('Cover image', undefined, buttons);
     }
   };

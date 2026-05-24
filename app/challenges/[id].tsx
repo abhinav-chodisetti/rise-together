@@ -25,7 +25,9 @@ export default function ChallengeDetailScreen() {
         edges={['top', 'bottom']}>
         <View className="flex-row items-center px-4 pt-2 pb-3">
           <Pressable
-            onPress={() => router.back()}
+            onPress={() =>
+              router.canGoBack() ? router.back() : router.replace('/(tabs)/challenges')
+            }
             hitSlop={10}
             accessibilityRole="button"
             accessibilityLabel="Go back"
@@ -168,18 +170,9 @@ export default function ChallengeDetailScreen() {
           </View>
         </View>
 
-        <View className="mt-8 flex-row items-center justify-between">
-          <Text className="text-title-large font-primary-bold text-primary-text">Leaderboard</Text>
-          <Pressable
-            onPress={() => {
-              /* TODO(challenges): navigate to full leaderboard */
-            }}
-            hitSlop={6}
-            accessibilityRole="link"
-            accessibilityLabel="View full leaderboard">
-            <Text className="text-label-large font-secondary-semibold text-primary">View All</Text>
-          </Pressable>
-        </View>
+        <Text className="mt-8 text-title-large font-primary-bold text-primary-text">
+          Leaderboard
+        </Text>
 
         <View className="mt-4 gap-3">
           {challenge.leaderboard.map((entry) => (

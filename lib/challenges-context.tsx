@@ -54,6 +54,26 @@ function daysBetween(from: Date, to: Date): number {
   return Math.round((b - a) / (1000 * 60 * 60 * 24));
 }
 
+function isChallenge(value: unknown): value is Challenge {
+  if (!value || typeof value !== 'object') return false;
+  const c = value as Record<string, unknown>;
+  return (
+    typeof c.id === 'string' &&
+    typeof c.name === 'string' &&
+    (c.status === 'active' || c.status === 'joined') &&
+    typeof c.participantCount === 'number' &&
+    typeof c.progressPercent === 'number' &&
+    Array.isArray(c.avatarColors) &&
+    typeof c.dayCurrent === 'number' &&
+    typeof c.dayTotal === 'number' &&
+    typeof c.groupConsistency === 'number' &&
+    Array.isArray(c.detailHeaderAvatars) &&
+    typeof c.detailOthersCount === 'number' &&
+    Array.isArray(c.leaderboard) &&
+    Array.isArray(c.activity)
+  );
+}
+
 function newChallengeFromInput(input: NewChallengeInput): Challenge {
   const today = new Date();
   const daysUntilStart = Math.max(0, daysBetween(today, input.startDate));
@@ -106,7 +126,15 @@ export function ChallengesProvider({ children }: { children: ReactNode }) {
           try {
             const parsed: unknown = JSON.parse(json);
             if (Array.isArray(parsed)) {
-              setChallenges(parsed as Challenge[]);
+              const valid = parsed.filter(isChallenge);
+              if (valid.length !== parsed.length) {
+                console.warn(
+                  `[challenges] dropped ${parsed.length - valid.length} malformed entr${
+                    parsed.length - valid.length === 1 ? 'y' : 'ies'
+                  } from storage`,
+                );
+              }
+              setChallenges(valid);
             } else {
               setChallenges(MOCK_CHALLENGES);
             }

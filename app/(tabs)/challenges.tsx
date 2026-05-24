@@ -12,7 +12,7 @@ import { useThemeColors } from '../../lib/theme-context';
 export default function Challenges() {
   const colors = useThemeColors();
   const router = useRouter();
-  const { challenges } = useChallenges();
+  const { challenges, isHydrated } = useChallenges();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -124,26 +124,17 @@ export default function Challenges() {
                 : 'All Groups'
               : 'Your Groups'}
           </Text>
-          {!isSearchOpen ? (
-            <Pressable
-              onPress={() => {
-                /* TODO(challenges): navigate to full list */
-              }}
-              hitSlop={6}
-              accessibilityRole="link"
-              accessibilityLabel="See all challenges">
-              <Text className="text-label-large font-secondary-semibold text-primary">See All</Text>
-            </Pressable>
-          ) : null}
         </View>
 
         {filteredChallenges.length === 0 ? (
-          <View className="mt-10 items-center">
-            <Ionicons name="search" size={28} color={colors.hint} />
-            <Text className="mt-3 text-body-medium font-secondary text-secondary-text">
-              No challenges match &ldquo;{searchQuery.trim()}&rdquo;
-            </Text>
-          </View>
+          isHydrated && trimmedQuery.length > 0 ? (
+            <View className="mt-10 items-center">
+              <Ionicons name="search" size={28} color={colors.hint} />
+              <Text className="mt-3 text-body-medium font-secondary text-secondary-text">
+                No challenges match &ldquo;{searchQuery.trim()}&rdquo;
+              </Text>
+            </View>
+          ) : null
         ) : (
           <View className="mt-4 gap-5">
             {filteredChallenges.map((challenge) => (
