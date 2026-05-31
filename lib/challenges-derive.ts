@@ -202,9 +202,14 @@ function deriveChallenge(
   const isRestDayToday = !scheduledSet.has(today.getDay());
 
   const participants = row.challenge_participants ?? [];
-  const completions = row.challenge_completions ?? [];
   const participantIds = participants.map((p) => p.clerk_user_id);
   const participantCount = participantIds.length;
+  // Filter out completions from people who already left the challenge so they
+  // can't keep contributing to consistency or "completed today" counts.
+  const participantIdSet = new Set(participantIds);
+  const completions = (row.challenge_completions ?? []).filter((c) =>
+    participantIdSet.has(c.clerk_user_id),
+  );
 
   const todayIso = todayISO();
   const completedTodayIds = new Set(

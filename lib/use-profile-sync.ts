@@ -33,11 +33,23 @@ export function useProfileSync() {
         },
         { onConflict: 'clerk_user_id' },
       )
-      .then(({ error }) => {
-        if (error) {
-          console.warn('[profile-sync] upsert failed:', error.message);
+      .then(
+        ({ error }) => {
+          if (error) {
+            console.warn('[profile-sync] upsert failed:', error.message);
+            lastSyncedFingerprint.current = null;
+          }
+        },
+        (err: unknown) => {
+          // Network rejections etc. — log, reset fingerprint so the next
+          // change retries instead of being skipped as "already synced".
+          // Two-arg form because PostgrestBuilder is a PromiseLike (no .catch).
+          console.warn(
+            '[profile-sync] upsert rejected:',
+            err instanceof Error ? err.message : String(err),
+          );
           lastSyncedFingerprint.current = null;
-        }
-      });
+        },
+      );
   }, [isLoaded, user?.id, user?.firstName, user?.lastName, user?.imageUrl, supabase]);
 }

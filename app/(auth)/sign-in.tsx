@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
-import { consumePendingInviteOrFallback } from '../../lib/pending-invite';
+import { clearPendingInvite, peekPendingInviteOrFallback } from '../../lib/pending-invite';
 import { useNavigationGuard } from '../../lib/use-navigation-guard';
 import { useThemeColors } from '../../lib/theme-context';
 
@@ -46,12 +46,14 @@ export default function SignInScreen() {
     }
 
     try {
-      const dest = await consumePendingInviteOrFallback();
+      // Peek (don't clear) so the invite survives a finalize failure.
+      const dest = await peekPendingInviteOrFallback();
       await signIn.finalize({
         navigate: ({ decorateUrl }) => {
           router.replace(decorateUrl(dest) as Href);
         },
       });
+      await clearPendingInvite();
     } catch {
       setTopError(
         `Sign-in didn't complete (status: ${signIn.status}). Try again or reset your password.`,

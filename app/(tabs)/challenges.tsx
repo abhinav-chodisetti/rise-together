@@ -45,11 +45,9 @@ export default function Challenges() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [liveChallenges, trimmedQuery],
   );
-  const filteredCompleted = useMemo(
-    () => filterByQuery(completedChallenges),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [completedChallenges, trimmedQuery],
-  );
+  // Completed challenges are a library, not search results — keep them visible
+  // regardless of the search query so a "completed-only" filter never hides them.
+  const completedSectionList = completedChallenges;
   const filteredChallenges = filteredLive;
 
   const activeChallengeCount = liveChallenges.filter((c) => c.status === 'active').length;
@@ -173,14 +171,14 @@ export default function Challenges() {
                 No challenges match &ldquo;{searchQuery.trim()}&rdquo;
               </Text>
             </View>
-          ) : (
+          ) : completedSectionList.length === 0 ? (
             <View className="mt-10 items-center px-6">
               <Ionicons name="trophy-outline" size={28} color={colors.hint} />
               <Text className="mt-3 text-center text-body-medium font-secondary text-secondary-text">
                 No challenges yet. Tap Create Challenge to start one.
               </Text>
             </View>
-          )
+          ) : null
         ) : (
           <View className="mt-4 gap-5">
             {filteredChallenges.map((challenge) => (
@@ -190,7 +188,7 @@ export default function Challenges() {
         )}
 
         {/* ---- Completed challenges (collapsible) ---- */}
-        {isHydrated && !loadError && filteredCompleted.length > 0 ? (
+        {isHydrated && !loadError && completedSectionList.length > 0 ? (
           <View className="mt-6">
             <Pressable
               onPress={() => setIsCompletedOpen((o) => !o)}
@@ -204,7 +202,7 @@ export default function Challenges() {
                   Completed Challenges
                 </Text>
                 <Text className="ml-2 text-body-small font-secondary text-secondary-text">
-                  ({filteredCompleted.length})
+                  ({completedSectionList.length})
                 </Text>
               </View>
               <Ionicons
@@ -215,7 +213,7 @@ export default function Challenges() {
             </Pressable>
             {isCompletedOpen ? (
               <View className="mt-3 gap-5">
-                {filteredCompleted.map((challenge) => (
+                {completedSectionList.map((challenge) => (
                   <ChallengeCard key={challenge.id} challenge={challenge} />
                 ))}
               </View>

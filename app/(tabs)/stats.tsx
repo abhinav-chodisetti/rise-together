@@ -102,10 +102,17 @@ export default function Stats() {
     const monthlyHabitPct =
       month.scheduled > 0 ? Math.round((month.completed / month.scheduled) * 100) : 0;
 
+    // Scope to the current month: numerator = challenges that ended this month;
+    // denominator = challenges whose lifespan overlapped this month at all.
+    // (The card sits under "This Month" — lifetime totals don't belong here.)
+    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const monthStartIso = `${monthKey}-01`;
     const completedChallengeCount = challenges.filter(
-      (c) => c.endDate && c.endDate < todayIso,
+      (c) => c.endDate && c.endDate < todayIso && c.endDate.startsWith(monthKey),
     ).length;
-    const totalChallengeCount = challenges.length;
+    const totalChallengeCount = challenges.filter(
+      (c) => c.startDate <= todayIso && (!c.endDate || c.endDate >= monthStartIso),
+    ).length;
     const winsPct =
       totalChallengeCount > 0
         ? Math.round((completedChallengeCount / totalChallengeCount) * 100)

@@ -62,8 +62,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         setIsDarkState(initialDark);
         colorScheme.set(initialDark ? 'dark' : 'light');
 
-        if (paletteRaw === 'hype' || paletteRaw === 'default') {
-          setPaletteState(paletteRaw);
+        if (paletteRaw && paletteRaw in PALETTES) {
+          setPaletteState(paletteRaw as PaletteId);
         }
         setIsHydrated(true);
       })

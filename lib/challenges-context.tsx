@@ -201,7 +201,14 @@ export function ChallengesProvider({ children }: { children: ReactNode }) {
       const { error: partError } = await supabase
         .from('challenge_participants')
         .insert({ challenge_id: created.id, clerk_user_id: user.id });
-      if (partError) throw new Error(partError.message);
+      if (partError) {
+        // Compensating delete: a challenge without its owner-participant row
+        // is orphaned and unreachable. Roll back the challenge insert so the
+        // creator can retry cleanly. Best-effort — if this delete itself
+        // fails the original error still surfaces.
+        await supabase.from('challenges').delete().eq('id', created.id);
+        throw new Error(partError.message);
+      }
 
       const list = await loadChallengesList();
       setChallenges(list);

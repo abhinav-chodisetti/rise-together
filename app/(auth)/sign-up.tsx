@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../../components/Button';
 import { Checkbox } from '../../components/Checkbox';
 import { Input } from '../../components/Input';
-import { consumePendingInviteOrFallback } from '../../lib/pending-invite';
+import { clearPendingInvite, peekPendingInviteOrFallback } from '../../lib/pending-invite';
 import { useNavigationGuard } from '../../lib/use-navigation-guard';
 import { useThemeColors } from '../../lib/theme-context';
 
@@ -76,17 +76,25 @@ export default function SignUpScreen() {
       }
       setMode('verify');
     } else if (signUp.status === 'complete') {
-      await finalizeSignUp();
+      try {
+        await finalizeSignUp();
+      } catch {
+        setTopError(
+          `Sign-up didn't complete (status: ${signUp.status}). Try again.`,
+        );
+      }
     }
   };
 
   const finalizeSignUp = async () => {
-    const dest = await consumePendingInviteOrFallback();
+    // Peek (don't clear) so the invite survives a finalize failure.
+    const dest = await peekPendingInviteOrFallback();
     await signUp.finalize({
       navigate: ({ decorateUrl }) => {
         router.replace(decorateUrl(dest) as Href);
       },
     });
+    await clearPendingInvite();
   };
 
   const onVerify = async () => {
@@ -97,7 +105,13 @@ export default function SignUpScreen() {
       return;
     }
     if (signUp.status === 'complete') {
-      await finalizeSignUp();
+      try {
+        await finalizeSignUp();
+      } catch {
+        setTopError(
+          `Sign-up didn't complete (status: ${signUp.status}). Try again.`,
+        );
+      }
     }
   };
 

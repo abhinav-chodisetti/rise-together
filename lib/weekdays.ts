@@ -11,8 +11,8 @@ export function isScheduledToday(days: Weekday[], today: Date = new Date()): boo
 }
 
 export function formatSchedule(days: Weekday[]): string {
-  if (days.length === 7) return 'Daily';
   const sorted = [...new Set(days)].sort((a, b) => a - b);
+  if (sorted.length === 7) return 'Daily';
   if (sorted.length === 5 && sorted.every((d, i) => d === i + 1)) return 'Weekdays';
   if (sorted.length === 2 && sorted[0] === 0 && sorted[1] === 6) return 'Weekends';
   return sorted.map((d) => WEEKDAY_LABELS_FULL[d]).join(' · ');

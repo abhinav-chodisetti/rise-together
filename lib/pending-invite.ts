@@ -36,3 +36,16 @@ export async function consumePendingInviteOrFallback(): Promise<string> {
   }
   return '/(tabs)';
 }
+
+// Read-only variant: returns the destination route without clearing storage.
+// Use this when you need the destination BEFORE the auth finalize call, so
+// the invite survives a finalize failure and the user can retry.
+export async function peekPendingInviteOrFallback(): Promise<string> {
+  try {
+    const id = await AsyncStorage.getItem(KEY);
+    if (id) return `/join/${id}`;
+  } catch {
+    // ignore
+  }
+  return '/(tabs)';
+}

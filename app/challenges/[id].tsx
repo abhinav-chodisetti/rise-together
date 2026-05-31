@@ -50,6 +50,8 @@ export default function ChallengeDetailScreen() {
     unmarkComplete,
     postComment,
     deleteComment,
+    isHydrated,
+    loadError,
   } = useChallenges();
   const supabase = useSupabase();
   const insets = useSafeAreaInsets();
@@ -63,6 +65,10 @@ export default function ChallengeDetailScreen() {
   const challenge = getChallengeById(id);
 
   if (!challenge) {
+    // Show "not found" only once we've finished loading the user's challenges.
+    // Before hydration completes, getChallengeById returns undefined for every
+    // id — rendering "not found" then would be a flash of wrong content.
+    const isStillLoading = !isHydrated && !loadError;
     return (
       <SafeAreaView
         style={{ flex: 1, backgroundColor: colors.background }}
@@ -80,17 +86,25 @@ export default function ChallengeDetailScreen() {
           </Pressable>
         </View>
         <View className="flex-1 items-center justify-center px-6">
-          <Text className="text-body-large font-secondary text-secondary-text">
-            Challenge not found.
-          </Text>
+          {isStillLoading ? (
+            <ActivityIndicator color={colors.primary} />
+          ) : (
+            <Text className="text-body-large font-secondary text-secondary-text">
+              Challenge not found.
+            </Text>
+          )}
         </View>
       </SafeAreaView>
     );
   }
 
-  const firstName = user?.firstName?.trim() || 'there';
-  const lastName = user?.lastName?.trim() ?? '';
-  const fullName = [firstName, lastName].filter(Boolean).join(' ');
+  // Keep "there" as a display fallback for the greeting only — don't let it
+  // contaminate `fullName`, which would otherwise produce e.g. "there Doe"
+  // when only the last name is set.
+  const rawFirstName = user?.firstName?.trim() ?? '';
+  const rawLastName = user?.lastName?.trim() ?? '';
+  const firstName = rawFirstName || 'there';
+  const fullName = [rawFirstName, rawLastName].filter(Boolean).join(' ');
 
   const hasEnded = challenge.endDate !== undefined && challenge.endDate < todayISO();
   const canLog = !challenge.isRestDayToday && !hasEnded;
