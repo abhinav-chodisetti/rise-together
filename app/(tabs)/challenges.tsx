@@ -1,32 +1,61 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useNavigationGuard } from '../../lib/use-navigation-guard';
 import { useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '../../components/Button';
-import { useChallenges } from '../../lib/challenges-context';
-import { type Challenge, type ChallengeStatus } from '../../lib/mock-challenges';
-import { useThemeColors } from '../../lib/theme-context';
+import { cn } from '../../components/cn';
+import {
+  useChallenges,
+  type Challenge,
+  type ChallengeStatus,
+} from '../../lib/challenges-context';
+import { todayISO } from '../../lib/streak';
+import { useThemeColors, useThemeFonts } from '../../lib/theme-context';
 
 export default function Challenges() {
   const colors = useThemeColors();
-  const router = useRouter();
-  const { challenges, isHydrated } = useChallenges();
+  const fonts = useThemeFonts();
+  const router = useNavigationGuard();
+  const { challenges, isHydrated, loadError } = useChallenges();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isCompletedOpen, setIsCompletedOpen] = useState(false);
 
   const trimmedQuery = searchQuery.trim().toLowerCase();
-  const filteredChallenges = useMemo(
-    () =>
-      trimmedQuery
-        ? challenges.filter((c) => c.name.toLowerCase().includes(trimmedQuery))
-        : challenges,
-    [challenges, trimmedQuery],
-  );
+  // Split challenges into live (active or upcoming) vs completed (ended).
+  const { liveChallenges, completedChallenges } = useMemo(() => {
+    const today = todayISO();
+    const live: Challenge[] = [];
+    const done: Challenge[] = [];
+    for (const c of challenges) {
+      if (c.endDate && c.endDate < today) done.push(c);
+      else live.push(c);
+    }
+    return { liveChallenges: live, completedChallenges: done };
+  }, [challenges]);
 
-  const activeCount = challenges.filter((c) => c.status === 'active').length;
-  const wonCount = 12; // TODO(challenges-backend): derive from challenge completion history.
+  const filterByQuery = (list: Challenge[]) =>
+    trimmedQuery
+      ? list.filter((c) => c.name.toLowerCase().includes(trimmedQuery))
+      : list;
+  const filteredLive = useMemo(
+    () => filterByQuery(liveChallenges),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [liveChallenges, trimmedQuery],
+  );
+  const filteredCompleted = useMemo(
+    () => filterByQuery(completedChallenges),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [completedChallenges, trimmedQuery],
+  );
+  const filteredChallenges = filteredLive;
+
+  const activeChallengeCount = liveChallenges.filter((c) => c.status === 'active').length;
+  const activeCount: number | string = activeChallengeCount === 0 ? '—' : activeChallengeCount;
+  const wonCount: number | string =
+    completedChallenges.length === 0 ? '—' : completedChallenges.length;
 
   const closeSearch = () => {
     setIsSearchOpen(false);
@@ -76,16 +105,19 @@ export default function Challenges() {
               accessibilityRole="button"
               accessibilityLabel="Cancel search"
               className="ml-3">
-              <Text className="text-label-large font-secondary-semibold text-primary">Cancel</Text>
+              <Text
+                className="text-label-large font-secondary-semibold"
+                style={{ color: colors.primary }}>
+                Cancel
+              </Text>
             </Pressable>
           </View>
         ) : (
           <View className="flex-row items-start justify-between pt-2 pb-6">
             <View className="flex-1 pr-3">
-              <Text className="text-headline-large font-primary-bold text-primary">
-                RiseTogether
-              </Text>
-              <Text className="text-headline-large font-primary-bold text-primary-text">
+              <Text
+                className="text-headline-large text-primary-text"
+                style={{ fontFamily: fonts.primaryBold }}>
                 Challenges
               </Text>
             </View>
@@ -114,27 +146,41 @@ export default function Challenges() {
           </View>
         )}
 
-        <View
-          className="flex-row items-center justify-between"
-          style={{ marginTop: isSearchOpen ? 0 : 32 }}>
-          <Text className="text-title-large font-primary-bold text-primary-text">
-            {isSearchOpen
-              ? trimmedQuery
-                ? `${filteredChallenges.length} result${filteredChallenges.length === 1 ? '' : 's'}`
-                : 'All Groups'
-              : 'Your Groups'}
-          </Text>
-        </View>
+        {isSearchOpen && trimmedQuery ? (
+          <View className="flex-row items-center justify-between">
+            <Text className="text-title-large font-primary-bold text-primary-text">
+              {`${filteredChallenges.length} result${filteredChallenges.length === 1 ? '' : 's'}`}
+            </Text>
+          </View>
+        ) : null}
 
-        {filteredChallenges.length === 0 ? (
-          isHydrated && trimmedQuery.length > 0 ? (
+        {!isHydrated ? (
+          <View className="mt-10 items-center">
+            <ActivityIndicator color={colors.primary} />
+          </View>
+        ) : loadError ? (
+          <View className="mt-10 items-center px-6">
+            <Ionicons name="cloud-offline-outline" size={28} color={colors.hint} />
+            <Text className="mt-3 text-center text-body-medium font-secondary text-secondary-text">
+              Couldn&apos;t load challenges. Pull down to retry.
+            </Text>
+          </View>
+        ) : filteredChallenges.length === 0 ? (
+          trimmedQuery.length > 0 ? (
             <View className="mt-10 items-center">
               <Ionicons name="search" size={28} color={colors.hint} />
               <Text className="mt-3 text-body-medium font-secondary text-secondary-text">
                 No challenges match &ldquo;{searchQuery.trim()}&rdquo;
               </Text>
             </View>
-          ) : null
+          ) : (
+            <View className="mt-10 items-center px-6">
+              <Ionicons name="trophy-outline" size={28} color={colors.hint} />
+              <Text className="mt-3 text-center text-body-medium font-secondary text-secondary-text">
+                No challenges yet. Tap Create Challenge to start one.
+              </Text>
+            </View>
+          )
         ) : (
           <View className="mt-4 gap-5">
             {filteredChallenges.map((challenge) => (
@@ -142,6 +188,40 @@ export default function Challenges() {
             ))}
           </View>
         )}
+
+        {/* ---- Completed challenges (collapsible) ---- */}
+        {isHydrated && !loadError && filteredCompleted.length > 0 ? (
+          <View className="mt-6">
+            <Pressable
+              onPress={() => setIsCompletedOpen((o) => !o)}
+              accessibilityRole="button"
+              accessibilityLabel={`${
+                isCompletedOpen ? 'Collapse' : 'Expand'
+              } completed challenges`}
+              className="flex-row items-center justify-between rounded-md bg-surface p-4">
+              <View className="flex-row items-center">
+                <Text className="text-body-large font-secondary-semibold text-primary-text">
+                  Completed Challenges
+                </Text>
+                <Text className="ml-2 text-body-small font-secondary text-secondary-text">
+                  ({filteredCompleted.length})
+                </Text>
+              </View>
+              <Ionicons
+                name={isCompletedOpen ? 'chevron-up' : 'chevron-down'}
+                size={20}
+                color={colors.secondaryText}
+              />
+            </Pressable>
+            {isCompletedOpen ? (
+              <View className="mt-3 gap-5">
+                {filteredCompleted.map((challenge) => (
+                  <ChallengeCard key={challenge.id} challenge={challenge} />
+                ))}
+              </View>
+            ) : null}
+          </View>
+        ) : null}
       </ScrollView>
 
       <View
@@ -167,82 +247,140 @@ export default function Challenges() {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: number }) {
+function StatCard({ label, value }: { label: string; value: number | string }) {
+  const isPlaceholder = typeof value !== 'number';
   return (
     <View className="flex-1 rounded-md bg-surface px-5 py-4">
       <Text className="text-body-small font-secondary text-secondary-text">{label}</Text>
-      <Text className="mt-1 text-headline-medium font-primary-bold text-primary-text">{value}</Text>
+      <Text
+        className={cn(
+          'mt-1 text-headline-medium font-primary-bold',
+          isPlaceholder ? 'text-secondary-text' : 'text-primary-text',
+        )}>
+        {value}
+      </Text>
     </View>
   );
 }
 
 function ChallengeCard({ challenge }: { challenge: Challenge }) {
   const colors = useThemeColors();
-  const router = useRouter();
-  const othersCount = Math.max(0, challenge.participantCount - challenge.avatarColors.length);
+  const router = useNavigationGuard();
+  const topThree = challenge.leaderboard.slice(0, 3);
+  const hasCover = !!challenge.coverImageUri;
+  const hasEnded = !!challenge.endDate && challenge.endDate < todayISO();
+  const daysText = hasEnded
+    ? `Ended ${formatShortEndDate(challenge.endDate!)}`
+    : challenge.status === 'joined' && challenge.startsInDays !== undefined
+      ? `Starts in ${challenge.startsInDays} days`
+      : `${challenge.daysRemaining} days remaining`;
 
   return (
     <Pressable
       onPress={() => router.push(`/challenges/${challenge.id}`)}
       accessibilityRole="button"
       accessibilityLabel={`Open ${challenge.name}`}
-      className="overflow-hidden rounded-md bg-surface">
-      {challenge.coverImageUri ? (
-        <Image
-          source={{ uri: challenge.coverImageUri }}
-          style={{ width: '100%', aspectRatio: 16 / 9 }}
-          resizeMode="cover"
-        />
+      className="overflow-hidden rounded-md bg-surface"
+      style={{ opacity: hasEnded ? 0.85 : 1 }}>
+      {hasCover ? (
+        <View style={{ position: 'relative' }}>
+          <Image
+            source={{ uri: challenge.coverImageUri }}
+            style={{ width: '100%', aspectRatio: 16 / 9 }}
+            resizeMode="cover"
+          />
+          <View
+            style={{
+              position: 'absolute',
+              top: 12,
+              right: 12,
+              backgroundColor: 'rgba(0,0,0,0.55)',
+              paddingHorizontal: 10,
+              paddingVertical: 5,
+              borderRadius: 999,
+            }}>
+            <Text
+              className="text-body-small font-secondary-semibold"
+              style={{ color: '#FFFFFF' }}>
+              {daysText}
+            </Text>
+          </View>
+        </View>
       ) : null}
       <View className="p-5">
         <View className="flex-row items-start justify-between">
           <Text className="flex-1 pr-3 text-title-large font-primary-bold text-primary-text">
             {challenge.name}
           </Text>
-          <StatusPill status={challenge.status} />
+          {hasEnded ? (
+            <View className="rounded-full bg-background px-3 py-1">
+              <Text className="text-body-small font-secondary-semibold text-secondary-text">
+                Completed
+              </Text>
+            </View>
+          ) : (
+            <StatusPill status={challenge.status} />
+          )}
         </View>
 
-        <Text className="mt-1 text-body-small font-secondary text-secondary-text">
-          {challenge.status === 'joined' && challenge.startsInDays !== undefined
-            ? `Starts in ${challenge.startsInDays} days`
-            : `${challenge.daysRemaining} days remaining • ${challenge.participantCount} participants`}
-        </Text>
+        {hasCover ? null : (
+          <Text className="mt-1 text-body-small font-secondary text-secondary-text">
+            {daysText}
+          </Text>
+        )}
 
         <View className="mt-4 flex-row items-center justify-between">
           <Text className="text-body-medium font-primary-bold text-primary-text">Group Progress</Text>
-          <Text className="text-body-medium font-primary-bold text-primary">
+          <Text
+            className="text-body-medium font-primary-bold"
+            style={{ color: colors.primary }}>
             {challenge.progressPercent}%
           </Text>
         </View>
         <View className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-divider">
           <View
-            className="h-full rounded-full bg-primary"
-            style={{ width: `${challenge.progressPercent}%` }}
+            className="h-full rounded-full"
+            style={{ width: `${challenge.progressPercent}%`, backgroundColor: colors.primary }}
           />
         </View>
 
-        <View className="mt-4 flex-row items-center">
+        <View className="mt-4 flex-row items-center justify-between">
           <View className="flex-row">
-            {challenge.avatarColors.map((color, idx) => (
-              <View
-                key={idx}
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 14,
-                  backgroundColor: color,
-                  borderWidth: 2,
-                  borderColor: colors.surface,
-                  marginLeft: idx === 0 ? 0 : -8,
-                }}
-              />
-            ))}
+            {topThree.map((entry, idx) =>
+              entry.avatarUrl ? (
+                <Image
+                  key={entry.id}
+                  source={{ uri: entry.avatarUrl }}
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 14,
+                    backgroundColor: entry.avatarColor,
+                    borderWidth: 2,
+                    borderColor: colors.surface,
+                    marginLeft: idx === 0 ? 0 : -8,
+                  }}
+                />
+              ) : (
+                <View
+                  key={entry.id}
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 14,
+                    backgroundColor: entry.avatarColor,
+                    borderWidth: 2,
+                    borderColor: colors.surface,
+                    marginLeft: idx === 0 ? 0 : -8,
+                  }}
+                />
+              ),
+            )}
           </View>
-          {othersCount > 0 ? (
-            <Text className="ml-2 text-body-small font-secondary text-secondary-text">
-              +{othersCount} others
-            </Text>
-          ) : null}
+          <Text className="text-body-small font-secondary text-secondary-text">
+            {challenge.participantCount}{' '}
+            {challenge.participantCount === 1 ? 'participant' : 'participants'}
+          </Text>
         </View>
       </View>
     </Pressable>
@@ -262,4 +400,13 @@ function StatusPill({ status }: { status: ChallengeStatus }) {
       <Text className="text-body-small font-secondary-semibold text-primary-text">Joined</Text>
     </View>
   );
+}
+
+function formatShortEndDate(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }

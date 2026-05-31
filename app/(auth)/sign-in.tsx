@@ -1,19 +1,21 @@
 import { useSignIn } from '@clerk/expo';
 import { Ionicons } from '@expo/vector-icons';
-import { Link, useRouter, type Href } from 'expo-router';
+import { Link, type Href } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
+import { consumePendingInviteOrFallback } from '../../lib/pending-invite';
+import { useNavigationGuard } from '../../lib/use-navigation-guard';
 import { useThemeColors } from '../../lib/theme-context';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function SignInScreen() {
   const { signIn, errors, fetchStatus } = useSignIn();
-  const router = useRouter();
+  const router = useNavigationGuard();
   const colors = useThemeColors();
 
   const [email, setEmail] = useState('');
@@ -44,9 +46,10 @@ export default function SignInScreen() {
     }
 
     try {
+      const dest = await consumePendingInviteOrFallback();
       await signIn.finalize({
         navigate: ({ decorateUrl }) => {
-          router.replace(decorateUrl('/(tabs)') as Href);
+          router.replace(decorateUrl(dest) as Href);
         },
       });
     } catch {
@@ -72,7 +75,9 @@ export default function SignInScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
           <View className="items-center pb-12 pt-8">
-            <View className="h-20 w-20 items-center justify-center rounded-2xl bg-primary/10">
+            <View
+              className="h-20 w-20 items-center justify-center rounded-2xl"
+              style={{ backgroundColor: colors.primary + '1A' }}>
               <Ionicons name="sparkles" size={36} color={colors.primary} />
             </View>
             <Text className="mt-5 text-headline-large font-primary-bold text-primary-text">
@@ -115,7 +120,11 @@ export default function SignInScreen() {
               onPress={() => router.push('/(auth)/forgot-password')}
               hitSlop={8}
               accessibilityRole="link">
-              <Text className="text-label-large font-secondary-semibold text-primary">Forgot?</Text>
+              <Text
+                className="text-label-large font-secondary-semibold"
+                style={{ color: colors.primary }}>
+                Forgot?
+              </Text>
             </Pressable>
           </View>
           <Input
@@ -146,7 +155,9 @@ export default function SignInScreen() {
             </Text>
             <Link href="/(auth)/sign-up" asChild>
               <Pressable hitSlop={6}>
-                <Text className="text-body-medium font-secondary-semibold text-primary">
+                <Text
+                  className="text-body-medium font-secondary-semibold"
+                  style={{ color: colors.primary }}>
                   Sign Up
                 </Text>
               </Pressable>
