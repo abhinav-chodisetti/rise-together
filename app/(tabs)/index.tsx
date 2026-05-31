@@ -1,6 +1,5 @@
 import { useUser } from '@clerk/expo';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { useRef } from 'react';
 import { Alert, Image, ScrollView, Text, View } from 'react-native';
 import ReanimatedSwipeable, {
@@ -10,21 +9,27 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '../../components/Button';
 import { useHabits, type Habit } from '../../lib/habits-context';
-import { useThemeColors } from '../../lib/theme-context';
+import { useNavigationGuard } from '../../lib/use-navigation-guard';
+import { useThemeColors, useThemeFonts } from '../../lib/theme-context';
+import { isScheduledToday } from '../../lib/weekdays';
 import { HabitCard } from '../../components/HabitCard';
 
 const MAX_FREE_HABITS = 3;
 
 export default function Home() {
   const { user } = useUser();
-  const router = useRouter();
+  const router = useNavigationGuard();
   const colors = useThemeColors();
+  const fonts = useThemeFonts();
   const { habits, toggleHabit, removeHabit } = useHabits();
 
-  const completedCount = habits.filter((h) => h.isCompletedToday).length;
-  const totalCount = habits.length;
+  const scheduledToday = habits.filter((h) => isScheduledToday(h.daysOfWeek));
+  const completedCount = scheduledToday.filter((h) => h.isCompletedToday).length;
+  const totalCount = scheduledToday.length;
   const progressPercent =
     totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+  const hasAnyHabits = habits.length > 0;
+  const isAllRestDay = hasAnyHabits && totalCount === 0;
 
   const onAddHabit = () => {
     if (habits.length >= MAX_FREE_HABITS) {
@@ -54,7 +59,9 @@ export default function Home() {
             <Text className="text-body-large font-secondary text-secondary-text">
               Welcome back
             </Text>
-            <Text className="mt-1 text-headline-medium font-primary-bold text-primary-text">
+            <Text
+              className="mt-1 text-headline-medium text-primary-text"
+              style={{ fontFamily: fonts.primaryBold }}>
               {displayName}
             </Text>
           </View>
@@ -86,25 +93,39 @@ export default function Home() {
 
         <View className="rounded-md bg-surface p-5">
           <View className="flex-row items-center justify-between">
-            <Text className="text-title-large font-primary-bold text-primary-text">
+            <Text
+              className="text-title-large text-primary-text"
+              style={{ fontFamily: fonts.primaryBold }}>
               Daily Goal
             </Text>
-            <Text className="text-title-medium font-primary-bold text-primary">
-              {progressPercent}%
-            </Text>
+            {isAllRestDay ? null : (
+              <Text
+                className="text-title-medium font-primary-bold"
+                style={{ color: colors.primary }}>
+                {progressPercent}%
+              </Text>
+            )}
           </View>
-          <View className="mt-4 h-2 w-full overflow-hidden rounded-full bg-divider">
-            <View
-              className="h-full rounded-full bg-primary"
-              style={{ width: `${progressPercent}%` }}
-            />
-          </View>
+          {isAllRestDay ? null : (
+            <View className="mt-4 h-2 w-full overflow-hidden rounded-full bg-divider">
+              <View
+                className="h-full rounded-full"
+                style={{ width: `${progressPercent}%`, backgroundColor: colors.primary }}
+              />
+            </View>
+          )}
           <Text className="mt-4 text-body-medium font-secondary text-secondary-text">
-            {completedCount} of {totalCount} habits completed
+            {isAllRestDay
+              ? 'Rest day — nothing scheduled today'
+              : `${completedCount} of ${totalCount} habits completed`}
           </Text>
         </View>
 
-        <Text className="mt-8 text-title-large font-primary-bold text-primary-text">My Habits</Text>
+        <Text
+          className="mt-8 text-title-large text-primary-text"
+          style={{ fontFamily: fonts.primaryBold }}>
+          My Habits
+        </Text>
 
         <View className="mt-4 gap-3">
           {habits.map((habit) => (
@@ -155,6 +176,9 @@ function SwipeableHabit({
 }) {
   const colors = useThemeColors();
   const ref = useRef<SwipeableMethods>(null);
+  // True from swipe-threshold cross until the swipeable fully closes again.
+  // Suppresses concurrent tap-to-edit while the delete Alert is up.
+  const isSwipingRef = useRef(false);
 
   const renderLeftActions = () => (
     <View
@@ -171,6 +195,7 @@ function SwipeableHabit({
   );
 
   const promptDelete = () => {
+    isSwipingRef.current = true;
     ref.current?.close();
     Alert.alert(
       'Delete this habit?',
@@ -182,6 +207,11 @@ function SwipeableHabit({
     );
   };
 
+  const handleCardPress = (id: string) => {
+    if (isSwipingRef.current) return;
+    onPress(id);
+  };
+
   return (
     <ReanimatedSwipeable
       ref={ref}
@@ -189,8 +219,11 @@ function SwipeableHabit({
       leftThreshold={60}
       friction={1.5}
       overshootLeft={false}
-      onSwipeableWillOpen={promptDelete}>
-      <HabitCard habit={habit} onToggle={onToggle} onPress={onPress} />
+      onSwipeableWillOpen={promptDelete}
+      onSwipeableClose={() => {
+        isSwipingRef.current = false;
+      }}>
+      <HabitCard habit={habit} onToggle={onToggle} onPress={handleCardPress} />
     </ReanimatedSwipeable>
   );
 }

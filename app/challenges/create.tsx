@@ -3,6 +3,7 @@ import DateTimePicker, {
   type DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
+import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -15,6 +16,8 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  Share,
+  Switch,
   Text,
   TextInput,
   View,
@@ -26,11 +29,10 @@ import { Input } from '../../components/Input';
 import { cn } from '../../components/cn';
 import { useChallenges } from '../../lib/challenges-context';
 import { useThemeColors } from '../../lib/theme-context';
-
-type Frequency = 'daily' | 'weekly';
+import { ALL_DAYS, WEEKDAY_LABELS_SHORT, type Weekday } from '../../lib/weekdays';
+import { DayChip } from '../../components/DayChip';
 
 const MAX_REMINDERS = 3;
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const minutesFromDate = (d: Date): number => d.getHours() * 60 + d.getMinutes();
 
@@ -53,7 +55,8 @@ export default function CreateChallengeScreen() {
   const [description, setDescription] = useState('');
   const [coverImageUri, setCoverImageUri] = useState<string | null>(null);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
-  const [frequency, setFrequency] = useState<Frequency>('daily');
+  const [daysOfWeek, setDaysOfWeek] = useState<Weekday[]>([...ALL_DAYS]);
+  const [daysError, setDaysError] = useState<string | undefined>();
   const [durationDays, setDurationDays] = useState('30');
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
@@ -61,14 +64,13 @@ export default function CreateChallengeScreen() {
     return d;
   });
   const [goal, setGoal] = useState('');
+  const [requirePhoto, setRequirePhoto] = useState(false);
   const [reminders, setReminders] = useState<number[]>([]);
-  const [inviteInput, setInviteInput] = useState('');
-  const [inviteEmails, setInviteEmails] = useState<string[]>([]);
 
   // Validation state
   const [nameError, setNameError] = useState<string | undefined>();
   const [durationError, setDurationError] = useState<string | undefined>();
-  const [inviteError, setInviteError] = useState<string | undefined>();
+  const [isCreating, setIsCreating] = useState(false);
 
   // Modal state
   const [isReminderPickerOpen, setIsReminderPickerOpen] = useState(false);
@@ -220,31 +222,10 @@ export default function CreateChallengeScreen() {
     setIsDatePickerOpen(false);
   };
 
-  // ---- Invite people -------------------------------------------------------
-
-  const addInvitee = () => {
-    const trimmed = inviteInput.trim().toLowerCase();
-    if (trimmed.length === 0) return;
-    if (!EMAIL_RE.test(trimmed)) {
-      setInviteError('Enter a valid email');
-      return;
-    }
-    if (inviteEmails.includes(trimmed)) {
-      setInviteError('Already on the invite list');
-      return;
-    }
-    setInviteError(undefined);
-    setInviteEmails((prev) => [...prev, trimmed]);
-    setInviteInput('');
-  };
-
-  const removeInvitee = (email: string) => {
-    setInviteEmails((prev) => prev.filter((e) => e !== email));
-  };
-
   // ---- Save ----------------------------------------------------------------
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
+    if (isCreating) return;
     let hasErrors = false;
     const trimmedName = name.trim();
     if (trimmedName.length < 2) {
@@ -260,23 +241,60 @@ export default function CreateChallengeScreen() {
     } else {
       setDurationError(undefined);
     }
+    if (daysOfWeek.length === 0) {
+      setDaysError('Pick at least one day');
+      hasErrors = true;
+    } else {
+      setDaysError(undefined);
+    }
     if (hasErrors) return;
 
-    const created = addChallenge({
-      name: trimmedName,
-      description: description.trim() || undefined,
-      coverImageUri: coverImageUri ?? undefined,
-      frequency,
-      durationDays: duration,
-      startDate,
-      goal: goal.trim() || undefined,
-      reminderMinutes: reminders,
-      invitedEmails: inviteEmails,
-    });
+    setIsCreating(true);
+    try {
+      const created = await addChallenge({
+        name: trimmedName,
+        description: description.trim() || undefined,
+        coverImageUri: coverImageUri ?? undefined,
+        daysOfWeek,
+        durationDays: duration,
+        startDate,
+        goal: goal.trim() || undefined,
+        verification: requirePhoto ? 'photo' : 'honor',
+        reminderMinutes: reminders,
+      });
 
-    // Replace (not push) so the back button on the detail screen returns to the
-    // challenges tab, not the create form.
-    router.replace(`/challenges/${created.id}`);
+      // Replace (not push) so the back button on the detail screen returns to
+      // the challenges tab, not the create form.
+      const navigateToDetail = () => router.replace(`/challenges/${created.id}`);
+      Alert.alert(
+        'Challenge created',
+        'Invite friends to join?',
+        [
+          { text: 'Maybe later', style: 'cancel', onPress: navigateToDetail },
+          {
+            text: 'Invite',
+            onPress: async () => {
+              try {
+                const url = Linking.createURL(`/join/${created.id}`);
+                await Share.share({
+                  message: `Join my "${created.name}" challenge on RiseTogether\n${url}`,
+                });
+              } catch {
+                // User can share later via the Share button on the detail screen.
+              }
+              navigateToDetail();
+            },
+          },
+        ],
+        { cancelable: true, onDismiss: navigateToDetail },
+      );
+    } catch (e) {
+      Alert.alert(
+        "Couldn't create challenge",
+        e instanceof Error ? e.message : 'Try again in a moment.',
+      );
+      setIsCreating(false);
+    }
   };
 
   return (
@@ -411,22 +429,34 @@ export default function CreateChallengeScreen() {
             />
           </View>
 
-          {/* ---- Frequency ---- */}
+          {/* ---- Repeats on ---- */}
           <Text className="mt-8 mb-3 text-label-large font-secondary-semibold text-primary-text">
-            Frequency
+            Repeats on
           </Text>
-          <View className="flex-row gap-3">
-            <FrequencyPill
-              label="Daily"
-              active={frequency === 'daily'}
-              onPress={() => setFrequency('daily')}
-            />
-            <FrequencyPill
-              label="Weekly"
-              active={frequency === 'weekly'}
-              onPress={() => setFrequency('weekly')}
-            />
+          <View className="flex-row justify-between">
+            {WEEKDAY_LABELS_SHORT.map((label, idx) => {
+              const day = idx as Weekday;
+              const active = daysOfWeek.includes(day);
+              return (
+                <DayChip
+                  key={idx}
+                  label={label}
+                  active={active}
+                  onPress={() => {
+                    setDaysError(undefined);
+                    setDaysOfWeek((prev) =>
+                      prev.includes(day)
+                        ? prev.filter((d) => d !== day)
+                        : [...prev, day].sort((a, b) => a - b),
+                    );
+                  }}
+                />
+              );
+            })}
           </View>
+          {daysError ? (
+            <Text className="mt-2 text-body-small font-secondary text-error">{daysError}</Text>
+          ) : null}
 
           {/* ---- Duration ---- */}
           <Text className="mt-8 mb-2 text-label-large font-secondary-semibold text-primary-text">
@@ -495,6 +525,24 @@ export default function CreateChallengeScreen() {
             returnKeyType="done"
           />
 
+          {/* ---- Verification ---- */}
+          <View className="mt-8 flex-row items-center justify-between">
+            <View className="flex-1 pr-4">
+              <Text className="text-label-large font-secondary-semibold text-primary-text">
+                Require photo proof
+              </Text>
+              <Text className="mt-0.5 text-body-small font-secondary text-secondary-text">
+                Participants attach a photo each time they check in.
+              </Text>
+            </View>
+            <Switch
+              value={requirePhoto}
+              onValueChange={setRequirePhoto}
+              trackColor={{ false: colors.divider, true: colors.primary }}
+              thumbColor={colors.surface}
+            />
+          </View>
+
           {/* ---- Self-reminders ---- */}
           <View className="mt-8 flex-row items-center justify-between">
             <Text className="text-label-large font-secondary-semibold text-primary-text">
@@ -509,7 +557,9 @@ export default function CreateChallengeScreen() {
               accessibilityLabel="Add reminder time"
               className={cn('flex-row items-center', !canAddReminder && 'opacity-40')}>
               <Ionicons name="add" size={16} color={colors.primary} />
-              <Text className="ml-1 text-label-large font-secondary-semibold text-primary">
+              <Text
+                className="ml-1 text-label-large font-secondary-semibold"
+                style={{ color: colors.primary }}>
                 Add Time
               </Text>
             </Pressable>
@@ -547,75 +597,6 @@ export default function CreateChallengeScreen() {
             </Text>
           </View>
 
-          {/* ---- Invite people ---- */}
-          <Text className="mt-8 mb-2 text-label-large font-secondary-semibold text-primary-text">
-            Invite People{' '}
-            <Text className="text-body-small font-secondary text-secondary-text">(Optional)</Text>
-          </Text>
-          <View
-            className={cn(
-              'flex-row items-center rounded-md border bg-surface px-3.5',
-              inviteError ? 'border-error' : 'border-divider',
-            )}>
-            <Ionicons name="mail-outline" size={20} color={colors.secondaryText} />
-            <TextInput
-              value={inviteInput}
-              onChangeText={(t) => {
-                setInviteInput(t);
-                if (inviteError) setInviteError(undefined);
-              }}
-              placeholder="friend@example.com"
-              placeholderTextColor={colors.hint}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="done"
-              onSubmitEditing={addInvitee}
-              style={{
-                flex: 1,
-                marginLeft: 10,
-                paddingVertical: 14,
-                fontSize: 17,
-                color: colors.primaryText,
-                fontFamily: 'Inter-Regular',
-              }}
-              textAlignVertical="center"
-            />
-            <Pressable
-              onPress={addInvitee}
-              hitSlop={6}
-              accessibilityRole="button"
-              accessibilityLabel="Add invitee"
-              disabled={inviteInput.trim().length === 0}
-              className={cn(inviteInput.trim().length === 0 && 'opacity-40')}>
-              <Text className="text-label-large font-secondary-semibold text-primary">Add</Text>
-            </Pressable>
-          </View>
-          {inviteError ? (
-            <Text className="mt-1.5 text-body-small font-secondary text-error">{inviteError}</Text>
-          ) : null}
-
-          {inviteEmails.length > 0 ? (
-            <View className="mt-3 flex-row flex-wrap gap-2">
-              {inviteEmails.map((email) => (
-                <View
-                  key={email}
-                  className="flex-row items-center rounded-full bg-primary/10 px-3 py-1.5">
-                  <Text className="text-body-small font-secondary-semibold text-primary">
-                    {email}
-                  </Text>
-                  <Pressable
-                    onPress={() => removeInvitee(email)}
-                    hitSlop={6}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Remove ${email}`}
-                    className="ml-2">
-                    <Ionicons name="close" size={14} color={colors.primary} />
-                  </Pressable>
-                </View>
-              ))}
-            </View>
-          ) : null}
         </ScrollView>
 
         <View
@@ -632,6 +613,7 @@ export default function CreateChallengeScreen() {
           }}>
           <Button
             onPress={handleCreate}
+            loading={isCreating}
             leadingIcon={<Ionicons name="checkmark" size={20} color={colors.onPrimary} />}
             accessibilityLabel="Create challenge">
             Create Challenge
@@ -672,7 +654,11 @@ export default function CreateChallengeScreen() {
                   Pick a time
                 </Text>
                 <Pressable onPress={confirmIosReminder} hitSlop={8}>
-                  <Text className="text-body-large font-secondary-semibold text-primary">Done</Text>
+                  <Text
+                    className="text-body-large font-secondary-semibold"
+                    style={{ color: colors.primary }}>
+                    Done
+                  </Text>
                 </Pressable>
               </View>
               <DateTimePicker
@@ -720,7 +706,11 @@ export default function CreateChallengeScreen() {
                   Start date
                 </Text>
                 <Pressable onPress={confirmIosDate} hitSlop={8}>
-                  <Text className="text-body-large font-secondary-semibold text-primary">Done</Text>
+                  <Text
+                    className="text-body-large font-secondary-semibold"
+                    style={{ color: colors.primary }}>
+                    Done
+                  </Text>
                 </Pressable>
               </View>
               <DateTimePicker
@@ -739,31 +729,3 @@ export default function CreateChallengeScreen() {
   );
 }
 
-function FrequencyPill({
-  label,
-  active,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityState={{ selected: active }}
-      className={cn(
-        'flex-1 items-center justify-center rounded-full py-3.5',
-        active ? 'bg-primary' : 'bg-surface border border-divider',
-      )}>
-      <Text
-        className={cn(
-          'text-body-large font-primary-semibold',
-          active ? 'text-on-primary' : 'text-primary-text',
-        )}>
-        {label}
-      </Text>
-    </Pressable>
-  );
-}

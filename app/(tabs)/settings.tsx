@@ -1,7 +1,6 @@
 import { useClerk, useUser } from '@clerk/expo';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   ActionSheetIOS,
@@ -24,7 +23,10 @@ import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { cn } from '../../components/cn';
 import { useNotifications } from '../../lib/notifications-context';
+import { useSupabase } from '../../lib/supabase';
+import { useNavigationGuard } from '../../lib/use-navigation-guard';
 import { useTheme, useThemeColors } from '../../lib/theme-context';
+import { PALETTES, type PaletteId } from '../../constants/theme';
 
 // TODO(subscription): replace with real subscription state once payments are wired.
 const IS_PRO = false;
@@ -32,9 +34,9 @@ const IS_PRO = false;
 export default function Settings() {
   const { user } = useUser();
   const { signOut } = useClerk();
-  const router = useRouter();
+  const router = useNavigationGuard();
   const colors = useThemeColors();
-  const { isDark, setIsDark } = useTheme();
+  const { isDark, setIsDark, palette, setPalette } = useTheme();
   const { enabled: notificationsEnabled, setEnabled: setNotificationsEnabled } = useNotifications();
 
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
@@ -59,13 +61,16 @@ export default function Settings() {
     }
   };
 
-  // TODO(feedback-backend): replace the body of submitFeedback with a real POST
-  // to your endpoint (Web3Forms / Formspree / your own server). The function
-  // must resolve on success or throw on failure — the calling code is already
-  // wired for both branches. Throwing here is intentional: fail-closed so we
-  // never falsely tell a user their feedback was received.
-  const submitFeedback = async (_message: string): Promise<void> => {
-    throw new Error('Feedback transport not implemented');
+  const supabase = useSupabase();
+
+  const submitFeedback = async (message: string): Promise<void> => {
+    if (!user) throw new Error('Not signed in');
+    const { error } = await supabase.from('feedback').insert({
+      clerk_user_id: user.id,
+      message,
+      platform: Platform.OS,
+    });
+    if (error) throw new Error(error.message);
   };
 
   const openFeedback = () => {
@@ -338,7 +343,7 @@ export default function Settings() {
           <ToggleRow
             iconName="notifications"
             iconColor={colors.primary}
-            tileBg="bg-primary/10"
+            tileBg={colors.primary + '1A'}
             label="Notifications"
             value={notificationsEnabled}
             onValueChange={setNotificationsEnabled}
@@ -349,13 +354,38 @@ export default function Settings() {
           <ToggleRow
             iconName="moon"
             iconColor={colors.primary}
-            tileBg="bg-primary/10"
+            tileBg={colors.primary + '1A'}
             label="Dark Mode"
             value={isDark}
             onValueChange={setIsDark}
             trackOnColor={colors.primary}
             trackOffColor={colors.divider}
           />
+          <View className="h-px bg-divider" />
+          {/* TEMP palette switcher — cycles through PALETTES. Remove once a
+              palette is chosen and the others are deleted from constants. */}
+          <Pressable
+            onPress={() => {
+              const ids = Object.keys(PALETTES) as PaletteId[];
+              const next = ids[(ids.indexOf(palette) + 1) % ids.length];
+              setPalette(next);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={`Color palette, currently ${PALETTES[palette].label}`}
+            className="flex-row items-center px-4 py-3.5">
+            <IconTile
+              iconName="color-palette-outline"
+              iconColor={colors.primary}
+              tileBg={colors.primary + '1A'}
+            />
+            <Text className="ml-3 flex-1 text-body-large font-secondary text-primary-text">
+              Color Palette
+            </Text>
+            <Text className="mr-2 text-body-medium font-secondary text-secondary-text">
+              {PALETTES[palette].label}
+            </Text>
+            <Ionicons name="chevron-forward" size={20} color={colors.hint} />
+          </Pressable>
         </View>
 
         <SectionHeader>Support</SectionHeader>
@@ -364,7 +394,7 @@ export default function Settings() {
           <NavRow
             iconName="document-text-outline"
             iconColor={colors.primary}
-            tileBg="bg-primary/10"
+            tileBg={colors.primary + '1A'}
             label="Terms of Service"
             labelClassName="text-primary-text"
             onPress={() => router.push('/terms')}
@@ -374,7 +404,7 @@ export default function Settings() {
           <NavRow
             iconName="chatbubble-ellipses-outline"
             iconColor={colors.primary}
-            tileBg="bg-primary/10"
+            tileBg={colors.primary + '1A'}
             label="Send Feedback"
             labelClassName="text-primary-text"
             onPress={openFeedback}
@@ -384,7 +414,7 @@ export default function Settings() {
           <NavRow
             iconName="log-out-outline"
             iconColor={colors.error}
-            tileBg="bg-error/10"
+            tileBg={colors.error + '1A'}
             label="Logout"
             labelClassName="text-error"
             onPress={handleSignOut}
@@ -437,7 +467,11 @@ export default function Settings() {
                 {isSavingName ? (
                   <ActivityIndicator size="small" color={colors.primary} />
                 ) : (
-                  <Text className="text-body-large font-secondary-semibold text-primary">Save</Text>
+                  <Text
+                    className="text-body-large font-secondary-semibold"
+                    style={{ color: colors.primary }}>
+                    Save
+                  </Text>
                 )}
               </Pressable>
             </View>
@@ -514,7 +548,11 @@ export default function Settings() {
                 {isSendingFeedback ? (
                   <ActivityIndicator size="small" color={colors.primary} />
                 ) : (
-                  <Text className="text-body-large font-secondary-semibold text-primary">Send</Text>
+                  <Text
+                    className="text-body-large font-secondary-semibold"
+                    style={{ color: colors.primary }}>
+                    Send
+                  </Text>
                 )}
               </Pressable>
             </View>
@@ -572,10 +610,13 @@ function IconTile({
 }: {
   iconName: keyof typeof Ionicons.glyphMap;
   iconColor: string;
+  /** Hex color (with optional alpha suffix, e.g. `'#RRGGBB1A'` for 10%). */
   tileBg: string;
 }) {
   return (
-    <View className={cn('h-10 w-10 items-center justify-center rounded-md', tileBg)}>
+    <View
+      className="h-10 w-10 items-center justify-center rounded-md"
+      style={{ backgroundColor: tileBg }}>
       <Ionicons name={iconName} size={20} color={iconColor} />
     </View>
   );

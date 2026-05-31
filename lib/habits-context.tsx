@@ -9,14 +9,15 @@ import {
   type ReactNode,
 } from 'react';
 
-export type Frequency = 'daily' | 'weekly';
+import { computeScheduledStreak, toISO, todayISO } from './streak';
+import { ALL_DAYS, isValidWeekdayArray, type Weekday } from './weekdays';
 
 type StoredHabit = {
   id: string;
   name: string;
   createdAt: string;
   completedDates: string[];
-  frequency: Frequency;
+  daysOfWeek: Weekday[];
   reminders: string[];
   quantity?: string;
 };
@@ -28,7 +29,7 @@ export type Habit = StoredHabit & {
 
 export type NewHabitInput = {
   name: string;
-  frequency: Frequency;
+  daysOfWeek: Weekday[];
   reminders: string[];
   quantity?: string;
 };
@@ -43,18 +44,6 @@ type HabitsContextValue = {
 };
 
 const STORAGE_KEY = 'risetogether.habits.v1';
-
-function toISO(d: Date): string {
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-function todayISO(): string {
-  return toISO(new Date());
-}
-
 function pastDates(count: number): string[] {
   const dates: string[] = [];
   const cursor = new Date();
@@ -65,30 +54,34 @@ function pastDates(count: number): string[] {
   return dates;
 }
 
-// Parse a "YYYY-MM-DD" string into a local-time Date.
-// `new Date(isoString)` would parse as UTC midnight and drift the day for
-// any user not in UTC+0 — breaking streak math.
-function localDateFromISO(iso: string): Date {
-  const [y, m, d] = iso.split('-').map(Number);
-  return new Date(y, m - 1, d);
-}
+// Normalizes a persisted habit into the current StoredHabit shape. Old
+// records may carry `frequency: 'daily' | 'weekly'` instead of `daysOfWeek` —
+// both map to every day, matching the prior behavior (weekly never actually
+// skipped days). Returns null if the record is too malformed to recover.
+function normalizeStoredHabit(value: unknown): StoredHabit | null {
+  if (!value || typeof value !== 'object') return null;
+  const h = value as Record<string, unknown>;
+  if (typeof h.id !== 'string' || typeof h.name !== 'string') return null;
+  if (typeof h.createdAt !== 'string') return null;
+  if (!Array.isArray(h.completedDates)) return null;
 
-// Counts consecutive days the habit was completed, walking backward from
-// today. If today isn't done yet, we start from yesterday — the day isn't
-// over, so the user hasn't broken the streak. As soon as we hit a missing
-// day, we stop counting.
-function computeStreak(completedDates: string[], today: string): number {
-  const dateSet = new Set(completedDates);
-  const cursor = localDateFromISO(today);
-  if (!dateSet.has(toISO(cursor))) {
-    cursor.setDate(cursor.getDate() - 1);
-  }
-  let streak = 0;
-  while (dateSet.has(toISO(cursor))) {
-    streak++;
-    cursor.setDate(cursor.getDate() - 1);
-  }
-  return streak;
+  const daysOfWeek: Weekday[] = isValidWeekdayArray(h.daysOfWeek)
+    ? [...new Set(h.daysOfWeek)].sort((a, b) => a - b)
+    : [...ALL_DAYS];
+
+  return {
+    id: h.id,
+    name: h.name,
+    createdAt: h.createdAt,
+    completedDates: (h.completedDates as unknown[]).filter(
+      (d): d is string => typeof d === 'string',
+    ),
+    daysOfWeek,
+    reminders: Array.isArray(h.reminders)
+      ? (h.reminders as unknown[]).filter((r): r is string => typeof r === 'string')
+      : [],
+    quantity: typeof h.quantity === 'string' ? h.quantity : undefined,
+  };
 }
 
 function seedHabits(): StoredHabit[] {
@@ -99,7 +92,7 @@ function seedHabits(): StoredHabit[] {
       name: 'Morning Meditation',
       createdAt: created,
       completedDates: pastDates(12),
-      frequency: 'daily',
+      daysOfWeek: [...ALL_DAYS],
       reminders: ['07:00 AM'],
     },
     {
@@ -107,7 +100,7 @@ function seedHabits(): StoredHabit[] {
       name: 'Write in Journal',
       createdAt: created,
       completedDates: pastDates(4),
-      frequency: 'daily',
+      daysOfWeek: [...ALL_DAYS],
       reminders: ['08:15 AM'],
     },
   ];
@@ -128,7 +121,10 @@ export function HabitsProvider({ children }: { children: ReactNode }) {
           try {
             const parsed: unknown = JSON.parse(json);
             if (Array.isArray(parsed)) {
-              setStoredHabits(parsed as StoredHabit[]);
+              const normalized = parsed
+                .map(normalizeStoredHabit)
+                .filter((h): h is StoredHabit => h !== null);
+              setStoredHabits(normalized);
             } else {
               setStoredHabits(seedHabits());
             }
@@ -161,7 +157,7 @@ export function HabitsProvider({ children }: { children: ReactNode }) {
       name: input.name.trim(),
       createdAt: todayISO(),
       completedDates: [],
-      frequency: input.frequency,
+      daysOfWeek: [...new Set(input.daysOfWeek)].sort((a, b) => a - b),
       reminders: input.reminders,
       quantity: input.quantity?.trim() || undefined,
     };
@@ -192,7 +188,7 @@ export function HabitsProvider({ children }: { children: ReactNode }) {
           ? {
               ...h,
               name: input.name.trim(),
-              frequency: input.frequency,
+              daysOfWeek: [...new Set(input.daysOfWeek)].sort((a, b) => a - b),
               reminders: input.reminders,
               quantity: input.quantity?.trim() || undefined,
             }
@@ -209,7 +205,7 @@ export function HabitsProvider({ children }: { children: ReactNode }) {
     const today = todayISO();
     return storedHabits.map((h) => ({
       ...h,
-      streak: computeStreak(h.completedDates, today),
+      streak: computeScheduledStreak(h.completedDates, today, h.daysOfWeek),
       isCompletedToday: h.completedDates.includes(today),
     }));
   }, [storedHabits]);

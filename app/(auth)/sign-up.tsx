@@ -1,6 +1,6 @@
 import { useSignUp } from '@clerk/expo';
 import { Ionicons } from '@expo/vector-icons';
-import { Link, useRouter, type Href } from 'expo-router';
+import { Link, type Href } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,6 +8,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../../components/Button';
 import { Checkbox } from '../../components/Checkbox';
 import { Input } from '../../components/Input';
+import { clearPendingInvite, peekPendingInviteOrFallback } from '../../lib/pending-invite';
+import { useNavigationGuard } from '../../lib/use-navigation-guard';
 import { useThemeColors } from '../../lib/theme-context';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -17,7 +19,7 @@ type Mode = 'form' | 'verify';
 
 export default function SignUpScreen() {
   const { signUp, errors, fetchStatus } = useSignUp();
-  const router = useRouter();
+  const router = useNavigationGuard();
   const colors = useThemeColors();
 
   const [mode, setMode] = useState<Mode>('form');
@@ -74,16 +76,25 @@ export default function SignUpScreen() {
       }
       setMode('verify');
     } else if (signUp.status === 'complete') {
-      await finalizeSignUp();
+      try {
+        await finalizeSignUp();
+      } catch {
+        setTopError(
+          `Sign-up didn't complete (status: ${signUp.status}). Try again.`,
+        );
+      }
     }
   };
 
   const finalizeSignUp = async () => {
+    // Peek (don't clear) so the invite survives a finalize failure.
+    const dest = await peekPendingInviteOrFallback();
     await signUp.finalize({
       navigate: ({ decorateUrl }) => {
-        router.replace(decorateUrl('/(tabs)') as Href);
+        router.replace(decorateUrl(dest) as Href);
       },
     });
+    await clearPendingInvite();
   };
 
   const onVerify = async () => {
@@ -94,7 +105,13 @@ export default function SignUpScreen() {
       return;
     }
     if (signUp.status === 'complete') {
-      await finalizeSignUp();
+      try {
+        await finalizeSignUp();
+      } catch {
+        setTopError(
+          `Sign-up didn't complete (status: ${signUp.status}). Try again.`,
+        );
+      }
     }
   };
 
@@ -150,9 +167,15 @@ export default function SignUpScreen() {
             </Pressable>
 
             <View className="flex-row gap-1.5">
-              <View className="h-1.5 w-6 rounded-full bg-primary" />
               <View
-                className={mode === 'verify' ? 'h-1.5 w-6 rounded-full bg-primary' : 'h-1.5 w-6 rounded-full bg-divider'}
+                className="h-1.5 w-6 rounded-full"
+                style={{ backgroundColor: colors.primary }}
+              />
+              <View
+                className="h-1.5 w-6 rounded-full"
+                style={{
+                  backgroundColor: mode === 'verify' ? colors.primary : colors.divider,
+                }}
               />
               <View className="h-1.5 w-6 rounded-full bg-divider" />
             </View>
@@ -160,7 +183,9 @@ export default function SignUpScreen() {
 
           {mode === 'form' ? (
             <>
-              <Text className="text-headline-large font-primary-bold text-primary">
+              <Text
+                className="text-headline-large font-primary-bold"
+                style={{ color: colors.primary }}>
                 Create Account
               </Text>
               <Text className="mb-8 mt-2 text-body-large font-secondary text-secondary-text">
@@ -241,7 +266,9 @@ export default function SignUpScreen() {
                 checked={termsAccepted}
                 onChange={setTermsAccepted}
                 accessibilityLabel="I agree to the Terms of Service and Privacy Policy">
-                <Text className="text-body-medium font-secondary text-primary">
+                <Text
+                  className="text-body-medium font-secondary"
+                  style={{ color: colors.primary }}>
                   I agree to the{' '}
                   <Text
                     className="font-secondary-semibold"
@@ -269,7 +296,9 @@ export default function SignUpScreen() {
                 </Text>
                 <Link href="/(auth)/sign-in" asChild>
                   <Pressable hitSlop={6}>
-                    <Text className="text-body-medium font-secondary-semibold text-primary">
+                    <Text
+                      className="text-body-medium font-secondary-semibold"
+                      style={{ color: colors.primary }}>
                       Sign In
                     </Text>
                   </Pressable>
@@ -322,7 +351,9 @@ export default function SignUpScreen() {
                 hitSlop={8}
                 className="mt-6 items-center"
                 accessibilityRole="button">
-                <Text className="text-body-medium font-secondary-semibold text-primary">
+                <Text
+                  className="text-body-medium font-secondary-semibold"
+                  style={{ color: colors.primary }}>
                   Send a new code
                 </Text>
               </Pressable>

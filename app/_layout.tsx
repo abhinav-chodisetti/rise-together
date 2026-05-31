@@ -5,13 +5,15 @@ import { tokenCache } from '@clerk/expo/token-cache';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ChallengesProvider } from '../lib/challenges-context';
 import { HabitsProvider } from '../lib/habits-context';
 import { NotificationsProvider } from '../lib/notifications-context';
-import { ThemeProvider, useTheme } from '../lib/theme-context';
+import { ThemeProvider, useTheme, usePaletteVars } from '../lib/theme-context';
+import { useProfileSync } from '../lib/use-profile-sync';
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
@@ -49,12 +51,19 @@ export default function RootLayout() {
 
 function ThemedRoot() {
   const { isDark } = useTheme();
+  const paletteVars = usePaletteVars();
+  useProfileSync();
   return (
-    <SafeAreaProvider>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="paywall" options={{ presentation: 'modal' }} />
-      </Stack>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
-    </SafeAreaProvider>
+    // The vars-applying View propagates the active palette's CSS variables
+    // to every NativeWind class below it. Empty object on the default palette
+    // means global.css drives, untouched.
+    <View style={[{ flex: 1 }, paletteVars]}>
+      <SafeAreaProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="paywall" options={{ presentation: 'modal' }} />
+        </Stack>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+      </SafeAreaProvider>
+    </View>
   );
 }

@@ -187,7 +187,9 @@ export default function ForgotPasswordScreen() {
                 </Text>
                 <Link href="/(auth)/sign-in" asChild>
                   <Pressable hitSlop={6}>
-                    <Text className="text-body-medium font-secondary-semibold text-primary">
+                    <Text
+                      className="text-body-medium font-secondary-semibold"
+                      style={{ color: colors.primary }}>
                       Sign In
                     </Text>
                   </Pressable>
@@ -237,7 +239,9 @@ export default function ForgotPasswordScreen() {
                 hitSlop={8}
                 className="mt-6 items-center"
                 accessibilityRole="button">
-                <Text className="text-body-medium font-secondary-semibold text-primary">
+                <Text
+                  className="text-body-medium font-secondary-semibold"
+                  style={{ color: colors.primary }}>
                   Send a new code
                 </Text>
               </Pressable>

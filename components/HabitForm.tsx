@@ -16,10 +16,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from './Button';
+import { DayChip } from './DayChip';
 import { Input } from './Input';
 import { cn } from './cn';
-import type { Frequency, NewHabitInput } from '../lib/habits-context';
+import type { NewHabitInput } from '../lib/habits-context';
 import { useThemeColors } from '../lib/theme-context';
+import { ALL_DAYS, WEEKDAY_LABELS_SHORT, type Weekday } from '../lib/weekdays';
 
 const MAX_REMINDERS = 3;
 
@@ -59,7 +61,7 @@ const parseReminderToMinutes = (raw: string): number | null => {
 
 export interface HabitFormInitial {
   name: string;
-  frequency: Frequency;
+  daysOfWeek: Weekday[];
   reminders: string[];
   quantity: string;
 }
@@ -83,7 +85,10 @@ export function HabitForm({
   const colors = useThemeColors();
 
   const [name, setName] = useState(initial?.name ?? '');
-  const [frequency, setFrequency] = useState<Frequency>(initial?.frequency ?? 'daily');
+  const [daysOfWeek, setDaysOfWeek] = useState<Weekday[]>(
+    initial?.daysOfWeek ?? [...ALL_DAYS],
+  );
+  const [daysError, setDaysError] = useState<string | undefined>();
   // Reminders are stored as minutes-since-midnight (0-1439) to avoid
   // locale-dependent string parsing for dedupe/sort.
   const [reminders, setReminders] = useState<number[]>(() => {
@@ -135,16 +140,28 @@ export function HabitForm({
     setReminders((prev) => prev.filter((m) => m !== minutes));
   };
 
+  const toggleDay = (day: Weekday) => {
+    setDaysError(undefined);
+    setDaysOfWeek((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort((a, b) => a - b),
+    );
+  };
+
   const handleSave = () => {
     const trimmed = name.trim();
     if (trimmed.length < 2) {
       setNameError('Give your habit a name');
       return;
     }
+    if (daysOfWeek.length === 0) {
+      setDaysError('Pick at least one day');
+      return;
+    }
     setNameError(undefined);
+    setDaysError(undefined);
     onSave({
       name: trimmed,
-      frequency,
+      daysOfWeek,
       reminders: reminders.map(formatMinutesAsTime),
       quantity,
     });
@@ -203,20 +220,25 @@ export function HabitForm({
           />
 
           <Text className="mt-8 mb-3 text-label-large font-secondary-semibold text-primary-text">
-            Frequency
+            Repeats on
           </Text>
-          <View className="flex-row gap-3">
-            <FrequencyPill
-              label="Daily"
-              active={frequency === 'daily'}
-              onPress={() => setFrequency('daily')}
-            />
-            <FrequencyPill
-              label="Weekly"
-              active={frequency === 'weekly'}
-              onPress={() => setFrequency('weekly')}
-            />
+          <View className="flex-row justify-between">
+            {WEEKDAY_LABELS_SHORT.map((label, idx) => {
+              const day = idx as Weekday;
+              const active = daysOfWeek.includes(day);
+              return (
+                <DayChip
+                  key={idx}
+                  label={label}
+                  active={active}
+                  onPress={() => toggleDay(day)}
+                />
+              );
+            })}
           </View>
+          {daysError ? (
+            <Text className="mt-2 text-body-small font-secondary text-error">{daysError}</Text>
+          ) : null}
 
           <View className="mt-8 flex-row items-center justify-between">
             <Text className="text-label-large font-secondary-semibold text-primary-text">
@@ -353,31 +375,3 @@ export function HabitForm({
   );
 }
 
-function FrequencyPill({
-  label,
-  active,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityState={{ selected: active }}
-      className={cn(
-        'flex-1 items-center justify-center rounded-full py-3.5',
-        active ? 'bg-primary' : 'bg-surface border border-divider',
-      )}>
-      <Text
-        className={cn(
-          'text-body-large font-primary-semibold',
-          active ? 'text-on-primary' : 'text-primary-text',
-        )}>
-        {label}
-      </Text>
-    </Pressable>
-  );
-}

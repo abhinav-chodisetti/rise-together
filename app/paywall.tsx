@@ -1,12 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '../components/Button';
 import { cn } from '../components/cn';
+import { useNavigationGuard } from '../lib/use-navigation-guard';
 import { useThemeColors } from '../lib/theme-context';
 
 type Tier = 'monthly' | 'annual';
@@ -30,7 +30,7 @@ const IMAGE_OFFSET_X = -65;
 const IMAGE_OFFSET_Y = -110;
 
 export default function PaywallScreen() {
-  const router = useRouter();
+  const router = useNavigationGuard();
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
 
@@ -112,7 +112,7 @@ export default function PaywallScreen() {
           <PlanCard
             title="Individual Plan"
             subtitle="Perfect for solo habit builders"
-            subtitleColorClass="text-secondary-text"
+            subtitleVariant="secondary"
             monthly={{
               label: 'Monthly Subscription',
               sublabel: 'Flexible, cancel anytime',
@@ -137,7 +137,7 @@ export default function PaywallScreen() {
             title="Family & Friends"
             badge="BEST VALUE"
             subtitle="Accountability for up to 4 users"
-            subtitleColorClass="text-primary"
+            subtitleVariant="primary"
             monthly={{
               label: 'Monthly Sharing',
               sublabel: 'Billed monthly',
@@ -166,7 +166,9 @@ export default function PaywallScreen() {
               hitSlop={8}
               accessibilityRole="button"
               accessibilityLabel="Restore purchase">
-              <Text className="text-body-medium font-secondary-semibold text-primary">
+              <Text
+                className="text-body-medium font-secondary-semibold"
+                style={{ color: colors.primary }}>
                 Restore Purchase
               </Text>
             </Pressable>
@@ -176,7 +178,9 @@ export default function PaywallScreen() {
               hitSlop={8}
               accessibilityRole="link"
               accessibilityLabel="Terms of Service">
-              <Text className="text-body-medium font-secondary-semibold text-primary">
+              <Text
+                className="text-body-medium font-secondary-semibold"
+                style={{ color: colors.primary }}>
                 Terms of Service
               </Text>
             </Pressable>
@@ -201,7 +205,7 @@ interface PlanCardProps {
   title: string;
   badge?: string;
   subtitle: string;
-  subtitleColorClass: string;
+  subtitleVariant: 'primary' | 'secondary';
   monthly: TierInfo;
   annual: TierInfo;
   features: string[];
@@ -216,7 +220,7 @@ function PlanCard({
   title,
   badge,
   subtitle,
-  subtitleColorClass,
+  subtitleVariant,
   monthly,
   annual,
   features,
@@ -226,17 +230,28 @@ function PlanCard({
   onSubscribe,
   containerClassName,
 }: PlanCardProps) {
+  const colors = useThemeColors();
+  const subtitleColor =
+    subtitleVariant === 'primary' ? colors.primary : colors.secondaryText;
   return (
     <View className={cn('rounded-lg bg-surface p-5', containerClassName)}>
       <View className="flex-row items-center justify-between">
         <Text className="text-title-large font-primary-bold text-primary-text">{title}</Text>
         {badge ? (
-          <View className="rounded-full bg-primary px-2.5 py-1">
-            <Text className="text-body-small font-secondary-semibold text-on-primary">{badge}</Text>
+          <View
+            className="rounded-full px-2.5 py-1"
+            style={{ backgroundColor: colors.primary }}>
+            <Text
+              className="text-body-small font-secondary-semibold"
+              style={{ color: colors.onPrimary }}>
+              {badge}
+            </Text>
           </View>
         ) : null}
       </View>
-      <Text className={cn('mt-1 text-body-medium font-secondary', subtitleColorClass)}>
+      <Text
+        className="mt-1 text-body-medium font-secondary"
+        style={{ color: subtitleColor }}>
         {subtitle}
       </Text>
 
